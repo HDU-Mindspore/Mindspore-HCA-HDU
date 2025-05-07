@@ -8,16 +8,14 @@ op_plugin for mindspore
 
 
 #### 安装教程
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
+安装前请确保环境中存在pytorch(cpu版本)：
+1.  将 `patch/op_plugin.patch` 打在最新 MindSpore 源码上，重新编译安装MindSpore;
+2.  `bash build.sh` 构建 op_plugin；
+3.  `source env.source` 设置环境变量。
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1.  测试CPU算子 `test/test_acos.py`.
 
 #### 参与贡献
 
