@@ -979,7 +979,7 @@ index 00000000000..62a39a9543a
 +}  // namespace mindspore
 diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/zeros.h b/mindspore/ops/kernel/cpu/pyboost/customize/zeros.h
 new file mode 100644
-index 00000000000..1fc7bc89c36
+index 00000000000..661aaf31fce
 --- /dev/null
 +++ b/mindspore/ops/kernel/cpu/pyboost/customize/zeros.h
 @@ -0,0 +1,35 @@
@@ -999,8 +999,8 @@ index 00000000000..1fc7bc89c36
 + * limitations under the License.
 + */
 +
-+#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_LIKE_H_
-+#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_LIKE_H_
++#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_H_
++#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_H_
 +
 +#include <vector>
 +#include <memory>
@@ -1012,8 +1012,8 @@ index 00000000000..1fc7bc89c36
 +namespace mindspore {
 +namespace kernel {
 +namespace pyboost {
-+void ZerosLikeExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const ValueTuplePtr &size,
-+                              const std::optional<Int64ImmPtr> &dtype);
++void ZerosCPUCustomize(const std::shared_ptr<OpRunner> &op, const ValueTuplePtr &size,
++                       const std::optional<Int64ImmPtr> &dtype);
 +}  // namespace pyboost
 +}  // namespace kernel
 +}  // namespace mindspore
@@ -1220,14 +1220,14 @@ index f300c3c8677..0236680bdbe 100644
 +        CPU: ZerosLikeExtCPU
          GPU: None
 diff --git a/mindspore/ops/op_def/yaml/zeros_op.yaml b/mindspore/ops/op_def/yaml/zeros_op.yaml
-index 3f2c8c9ad81..c16d9c5f7c5 100644
+index 3f2c8c9ad81..c9f0adaa291 100644
 --- a/mindspore/ops/op_def/yaml/zeros_op.yaml
 +++ b/mindspore/ops/op_def/yaml/zeros_op.yaml
 @@ -16,3 +16,4 @@ zeros:
      dispatch:
          enable: True
          Ascend: ZerosAscend
-+        Ascend: ZerosCPU
++        CPU: ZerosCPU
 diff --git a/mindspore/python/mindspore/common/tensor.py b/mindspore/python/mindspore/common/tensor.py
 index 2e6cd0d575f..4575b05c61a 100644
 --- a/mindspore/python/mindspore/common/tensor.py
