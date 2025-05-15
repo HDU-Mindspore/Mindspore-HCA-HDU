@@ -1,54 +1,50 @@
+diff --git a/mindspore/ccsrc/include/common/utils/utils.h b/mindspore/ccsrc/include/common/utils/utils.h
+index 153e7b3fd19..64d489fa192 100644
+--- a/mindspore/ccsrc/include/common/utils/utils.h
++++ b/mindspore/ccsrc/include/common/utils/utils.h
+@@ -74,6 +74,7 @@ constexpr auto kFlagGeKernel = "ge_kernel";
+ 
+ // custom operator func type
+ constexpr auto kCustomTypeAOT = "aot";
++constexpr auto kCustomTypeOPPlugin = "op_plugin";
+ constexpr auto kCustomTypeJULIA = "julia";
+ constexpr auto kCustomTypePyfunc = "pyfunc";
+ constexpr auto kCustomTypeTbe = "tbe";
 diff --git a/mindspore/ccsrc/plugin/device/cpu/hal/device/kernel_select_cpu.cc b/mindspore/ccsrc/plugin/device/cpu/hal/device/kernel_select_cpu.cc
-index 96c47732be7..bc48b2ccfc0 100644
+index 96c47732be7..99d48a673d3 100644
 --- a/mindspore/ccsrc/plugin/device/cpu/hal/device/kernel_select_cpu.cc
 +++ b/mindspore/ccsrc/plugin/device/cpu/hal/device/kernel_select_cpu.cc
-@@ -734,7 +734,9 @@ std::pair<std::string, ExceptionType> SetKernelInfoWithMsg(const CNodePtr &kerne
+@@ -36,6 +36,7 @@
+ #include "plugin/device/cpu/kernel/cpu_kernel.h"
+ #include "plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.h"
+ #include "plugin/device/cpu/kernel/custom/custom_julia_cpu_kernel.h"
++#include "plugin/device/cpu/kernel/custom/custom_op_plugin_kernel.h"
+ #include "plugin/device/cpu/kernel/pyfunc/py_func_cpu_kernel.h"
+ #include "common/ms_factory.h"
+ #include "utils/trace_base.h"
+@@ -679,6 +680,9 @@ void SetCustomOpKernelInfo(const std::string &custom_op_type, const std::string
+   } else if (custom_op_type == kCustomTypeJULIA) {
+     kernel::Factory<kernel::NativeCpuKernelMod>::Instance().Register(
+       op_name, []() { return std::make_shared<kernel::CustomJULIACpuKernelMod>(); });
++  } else if (custom_op_type == kCustomTypeOPPlugin) {
++    kernel::Factory<kernel::NativeCpuKernelMod>::Instance().Register(
++      op_name, []() { return std::make_shared<kernel::CustomOpPluginCpuKernelMod>(); });
+   } else {
+     MS_LOG(EXCEPTION) << "Unsupported func type for Custom operator on CPU, it should be "
+                       << "'hybrid', 'akg', 'pyfunc' or 'aot' or 'julia', "
+@@ -734,6 +738,12 @@ std::pair<std::string, ExceptionType> SetKernelInfoWithMsg(const CNodePtr &kerne
    std::vector<kernel::KernelAttr> object_selected_kernel_attrs;
    const auto &kernel_attrs = kernel::NativeCpuKernelMod::GetCpuSupportedList(op_name);
    if (kernel_attrs.empty()) {
--    return KernelNotSupportWarning(kernel_node, false);
-+    SetCustomOpKernelInfo(kCustomTypeAOT, op_name);
-+    UpdateCustomKernelBuildInfo(kernel_node, false);
-+    return {};
++    if (common::EnvHelper::GetInstance()->GetEnv("MS_OP_PLUGIN_PATH") != nullptr) {
++      // if env var MS_OP_PLUGIN_PATH is set, then use custom op plugin to load op
++      SetCustomOpKernelInfo(kCustomTypeOPPlugin, op_name);
++      UpdateCustomKernelBuildInfo(kernel_node, false);
++      return {};
++    }
+     return KernelNotSupportWarning(kernel_node, false);
    } else if (kernel_attrs[0].GetSkipCheck()) {
      object_selected_kernel_attrs = kernel_attrs;
-   } else if (!AnfAlgo::SelectKernelByObjectType(kernel_node, kernel_attrs, &object_selected_kernel_attrs)) {
-diff --git a/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.cc b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.cc
-index eabe8e740d9..a5d213dfa0b 100644
---- a/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.cc
-+++ b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.cc
-@@ -43,7 +43,17 @@ CustomAOTCpuKernelMod::~CustomAOTCpuKernelMod() {
- }
- 
- void CustomAOTCpuKernelMod::SetKernelPath() {
--  const auto &exec_info = GetValue<std::string>(primitive_->GetAttr("func_name"));
-+  std::string exec_info;
-+  if (!primitive_->GetAttr("func_name")) {
-+    const char *op_plugin_path = common::EnvHelper::GetInstance()->GetEnv("MS_OP_PLUGIN_PATH");
-+    if (op_plugin_path == nullptr) {
-+      MS_LOG(EXCEPTION) << "Create kernelmod for op " << primitive_->name() << " failed";
-+    } else {
-+      exec_info = std::string(op_plugin_path) + ":" + primitive_->name();
-+    }
-+  } else {
-+    exec_info = GetValue<std::string>(primitive_->GetAttr("func_name"));
-+  }
- 
-   if (auto pos = exec_info.find(":"); pos != std::string::npos) {
-     auto path = exec_info.substr(0, pos);
-diff --git a/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.h b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.h
-index b49281f9550..f1e7ca7e416 100644
---- a/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.h
-+++ b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_aot_cpu_kernel.h
-@@ -26,7 +26,7 @@
- namespace mindspore {
- namespace kernel {
- 
--class CustomAOTCpuKernelMod : public NativeCpuKernelMod {
-+class OPS_KERNEL_COMMON_API CustomAOTCpuKernelMod : public NativeCpuKernelMod {
-  public:
-   CustomAOTCpuKernelMod() : handle_(nullptr), init_func_(nullptr), aot_func_(nullptr) {}
-   ~CustomAOTCpuKernelMod();
 diff --git a/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_kernel_input_info.h b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_kernel_input_info.h
 new file mode 100644
 index 00000000000..82366c753e6
@@ -156,10 +152,10 @@ index 00000000000..82366c753e6
 +#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_CUSTOM_CUSTOM_KERNEL_INPUT_INFO_H_
 diff --git a/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_op_plugin_kernel.cc b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_op_plugin_kernel.cc
 new file mode 100644
-index 00000000000..f6639b4829d
+index 00000000000..9684ccf6a43
 --- /dev/null
 +++ b/mindspore/ccsrc/plugin/device/cpu/kernel/custom/custom_op_plugin_kernel.cc
-@@ -0,0 +1,216 @@
+@@ -0,0 +1,180 @@
 +/**
 + * Copyright 2021-2024 Huawei Technologies Co., Ltd
 + *
@@ -204,6 +200,10 @@ index 00000000000..f6639b4829d
 +
 +void CustomOpPluginCpuKernelMod::SetKernelPath() {
 +  const char *op_plugin_path = common::EnvHelper::GetInstance()->GetEnv("MS_OP_PLUGIN_PATH");
++
++  if (op_plugin_path == nullptr) {
++    MS_LOG(EXCEPTION) << "Try to select kernel: " << primitive_->name() << ", but MS_OP_PLUGIN_PATH is not set";
++  }
 +
 +  auto real_path = FileUtils::GetRealPath(op_plugin_path);
 +  file_path_ = real_path.value();
@@ -332,46 +332,6 @@ index 00000000000..f6639b4829d
 +  (void)std::transform(std::begin(shape_list_), std::end(shape_list_), std::back_inserter(shapes_),
 +                       [](auto &v) { return &v[0]; });
 +
-+  // #if !defined(_WIN32) && !defined(_WIN64)
-+  //   if (!handle_) {
-+  //     handle_ = dlopen(file_path_.c_str(), RTLD_LAZY | RTLD_LOCAL);
-+  //     if (!handle_) {
-+  //       MS_LOG(ERROR) << "For '" << kernel_name_ << "' on CPU, dlopen file '" << file_path_
-+  //                     << "' should be successful, but error occurs! Error message is: " << dlerror();
-+  //       return false;
-+  //     }
-+  //   }
-+  //   resize_func_ = reinterpret_cast<std::add_pointer<int(int *, int64_t **, const char **, KernelInputInfo
-+  //   *)>::type>(
-+  //     dlsym(handle_, (func_name_ + "Resize").c_str()));
-+  //   if (resize_func_ != nullptr) {
-+  //     // Init func exist in the custom aot file
-+  //     // Call this init func to set custom op kernel_info_
-+  //     int ret = 0;
-+  //     try {
-+  //       ret = resize_func_(&ndims_[0], &shapes_[0], &type_pointer_list_[0], (&kernel_info_));
-+  //     } catch (const std::exception &e) {
-+  //       MS_LOG(ERROR) << "For '" << kernel_name_ << "' on CPU, operator failed when executing user defined file "
-+  //                     << file_path_ << "! "
-+  //                     << "Error message is " << e.what();
-+  //       return false;
-+  //     }
-+
-+  //     if (ret != 0) {
-+  //       MS_LOG(EXCEPTION) << "Return value from CPU AOT kernel(" << file_path_ << ")'s function(" << func_name_ << ")
-+  //       is "
-+  //                         << ret << ". "
-+  //                         << "Any return value not equal to 0 will be treated as user defined error code and we will
-+  //                         "
-+  //                            "terminate execution. If termination is not your purpose, please set return value to
-+  //                            0.";
-+  //     }
-+  //   }
-+  // #else
-+  //   MS_LOG(EXCEPTION) << "Custom AOT Operator doesn't support Windows currently";
-+  // #endif
-+
-+  //   workspace_size_list_ = kernel_info_.WorkSpace();
 +  return static_cast<int>(KRET_OK);
 +}
 +}  // namespace kernel
@@ -445,7 +405,7 @@ index 00000000000..73890c44285
 +
 +#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_CUSTOM_CUSTOM_OP_PLUGIN_CPU_KERNEL_H_
 diff --git a/mindspore/ccsrc/pyboost/pyboost_utils.cc b/mindspore/ccsrc/pyboost/pyboost_utils.cc
-index dd05b76a8da..852a7be51ad 100644
+index c8380c81854..949e113965d 100644
 --- a/mindspore/ccsrc/pyboost/pyboost_utils.cc
 +++ b/mindspore/ccsrc/pyboost/pyboost_utils.cc
 @@ -33,6 +33,7 @@
@@ -456,803 +416,73 @@ index dd05b76a8da..852a7be51ad 100644
  
  namespace mindspore {
  namespace kernel {
-@@ -173,7 +174,8 @@ kernel::KernelModPtr PyBoostUtils::CreateKernelMod(const PrimitivePtr &prim, con
+@@ -173,7 +174,12 @@ kernel::KernelModPtr PyBoostUtils::CreateKernelMod(const PrimitivePtr &prim, con
    if (kernel_mod == nullptr) {
      kernel_mod = device_context->GetKernelExecutor(false)->CreateKernelMod(op_name);
      if (kernel_mod == nullptr) {
 -      MS_LOG(EXCEPTION) << "Create kernelmod for op " << op_name << " failed";
-+      kernel_mod = std::make_shared<kernel::CustomOpPluginCpuKernelMod>();
-+      // MS_LOG(EXCEPTION) << "Create kernelmod for op " << op_name << " failed";
++      if (common::EnvHelper::GetInstance()->GetEnv("MS_OP_PLUGIN_PATH") != nullptr) {
++        // if env var MS_OP_PLUGIN_PATH is set, then use custom op plugin to load op
++        kernel_mod = std::make_shared<kernel::CustomOpPluginCpuKernelMod>();
++      } else {
++        MS_LOG(EXCEPTION) << "Create kernelmod for op " << op_name << " failed";
++      }
      }
      if (!kernel_mod->Init(prim, inputs, outputs)) {
        MS_LOG(EXCEPTION) << "KernelMod Init Failed: " << op_name;
-@@ -382,11 +384,13 @@ void PyBoostUtils::LaunchKernel(const PrimitivePtr &primitive, const DeviceConte
-   // KernelMod init
-   auto kernel_mod = PyBoostUtils::CreateKernelMod(primitive, device_context, input_address_info.first,
-                                                   output_address_info.first, with_prim_attr);
-+  MS_LOG(ERROR) << "done create kernel mod: " << real_name;
-   MS_EXCEPTION_IF_NULL(kernel_mod);
-   // KernelMod resize
-   if (kernel_mod->Resize(input_address_info.first, output_address_info.first) == kernel::KRET_RESIZE_FAILED) {
-     MS_LOG(INTERNAL_EXCEPTION) << "#dmsg#Kernel build failed:#dmsg#CPU kernel op [" << real_name << "] resize failed.";
+@@ -586,8 +592,14 @@ std::pair<bool, KernelAttr> PyBoostUtils::SelectKernel(const std::vector<Abstrac
+                                                        const DeviceContext *device_context,
+                                                        const std::string &op_name) {
+   // only support CPU
+-  const auto &kernel_mod = device_context->GetKernelExecutor(false)->CreateKernelMod(op_name);
++  auto kernel_mod = device_context->GetKernelExecutor(false)->CreateKernelMod(op_name);
+   if (kernel_mod == nullptr) {
++    if (common::EnvHelper::GetInstance()->GetEnv("MS_OP_PLUGIN_PATH") != nullptr) {
++      // if env var MS_OP_PLUGIN_PATH is set, then use custom op plugin to load op
++      MS_LOG(WARNING) << "The kernel " << op_name << " unregistered, use custom op plugin";
++      kernel_mod = std::make_shared<kernel::CustomOpPluginCpuKernelMod>();
++      return {true, KernelAttr()};
++    }
+     MS_LOG(EXCEPTION) << "The kernel " << op_name << " unregistered.";
    }
-+  MS_LOG(ERROR) << "done resize kernel mod: " << real_name;
-   // Get workspace address
-   const auto &workspace_device_address =
-     PyBoostUtils::CreateWorkSpaceDeviceAddress(kernel_mod, device_context, primitive->name());
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.cc b/mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.cc
-new file mode 100644
-index 00000000000..21497ccff41
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.cc
-@@ -0,0 +1,64 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#include "mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.h"
-+#include "mindspore/ops/kernel/cpu/pyboost/auto_generate/acos_ext.h"
-+#include "mindspore/ccsrc/pyboost/pyboost_utils.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+#include "mindspore/ops/op_def/auto_generate/gen_ops_primitive_r.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+namespace {
-+void AcosExtCustomizeCall(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor) {
-+  // Async
-+  PyBoostUtils::DispatchRun(std::make_shared<runtime::PyBoostDeviceTask>([op, x_tensor]() {
-+    MS_LOG(DEBUG) << "Run device task Identity start";
-+    auto device_context = op->device_context();
-+    const auto &outputs = op->outputs();
-+
-+    // Malloc for input tensors
-+    PyBoostUtils::MallocOpInputs(device_context, x_tensor);
-+    // Malloc for output tensors
-+    PyBoostUtils::MallocOpOutputs(device_context, outputs);
-+
-+    // Get inputs kernel tensors, the not-tensor value will malloc here
-+    const auto &input_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), op->input_abs(), x_tensor);
-+
-+    // Get outputs kernel tensors
-+    const auto &output_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), {op->output_abs()}, outputs);
-+
-+    PyBoostUtils::LaunchKernel(op->primitive(), op->device_context(), input_address_info, output_address_info,
-+                               op->stream_id());
-+    MS_LOG(DEBUG) << "Run device task Identity end";
-+  }));
-+}
-+}  // namespace
-+
-+void AcosExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor) {
-+  OpRunner::InferOpOutput(op, x_tensor);
-+
-+  PyBoostUtils::PrepareOpInputs(op->device_context(), op->stream_id(), x_tensor);
-+  PyBoostUtils::PrepareOpOutputs(op->device_context(), op->stream_id(), op->outputs());
-+
-+  AcosExtCustomizeCall(op, x_tensor);
-+}
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.h b/mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.h
-new file mode 100644
-index 00000000000..35d59b5adac
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/acos_ext.h
-@@ -0,0 +1,34 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ACOS_H_
-+#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ACOS_H_
-+
-+#include <vector>
-+#include <memory>
-+#include "ir/tensor.h"
-+#include "ir/value.h"
-+#include "runtime/hardware/device_context_manager.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void AcosExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor);
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-+#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ACOS_H_
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.cc b/mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.cc
-new file mode 100644
-index 00000000000..dc8df4a0495
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.cc
-@@ -0,0 +1,64 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#include "mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.h"
-+#include "mindspore/ops/kernel/cpu/pyboost/auto_generate/atan_ext.h"
-+#include "mindspore/ccsrc/pyboost/pyboost_utils.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+#include "mindspore/ops/op_def/auto_generate/gen_ops_primitive_r.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+namespace {
-+void AtanExtCustomizeCall(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor) {
-+  // Async
-+  PyBoostUtils::DispatchRun(std::make_shared<runtime::PyBoostDeviceTask>([op, x_tensor]() {
-+    MS_LOG(DEBUG) << "Run device task Identity start";
-+    auto device_context = op->device_context();
-+    const auto &outputs = op->outputs();
-+
-+    // Malloc for input tensors
-+    PyBoostUtils::MallocOpInputs(device_context, x_tensor);
-+    // Malloc for output tensors
-+    PyBoostUtils::MallocOpOutputs(device_context, outputs);
-+
-+    // Get inputs kernel tensors, the not-tensor value will malloc here
-+    const auto &input_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), op->input_abs(), x_tensor);
-+
-+    // Get outputs kernel tensors
-+    const auto &output_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), {op->output_abs()}, outputs);
-+
-+    PyBoostUtils::LaunchKernel(op->primitive(), op->device_context(), input_address_info, output_address_info,
-+                               op->stream_id());
-+    MS_LOG(DEBUG) << "Run device task Identity end";
-+  }));
-+}
-+}  // namespace
-+
-+void AtanExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor) {
-+  OpRunner::InferOpOutput(op, x_tensor);
-+
-+  PyBoostUtils::PrepareOpInputs(op->device_context(), op->stream_id(), x_tensor);
-+  PyBoostUtils::PrepareOpOutputs(op->device_context(), op->stream_id(), op->outputs());
-+
-+  AtanExtCustomizeCall(op, x_tensor);
-+}
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.h b/mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.h
-new file mode 100644
-index 00000000000..7db440fcc06
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/atan_ext.h
-@@ -0,0 +1,34 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ATAN_H_
-+#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ATAN_H_
-+
-+#include <vector>
-+#include <memory>
-+#include "ir/tensor.h"
-+#include "ir/value.h"
-+#include "runtime/hardware/device_context_manager.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void AtanExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor);
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-+#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ATAN_H_
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.cc b/mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.cc
-new file mode 100644
-index 00000000000..8160d2a442e
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.cc
-@@ -0,0 +1,47 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.plugin/device/cpu/hal/device
-+ */
-+
-+#include "mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.h"
-+#include <memory>
-+#include "mindspore/ccsrc/pyboost/pyboost_utils.h"
-+#include "runtime/hardware/device_context_manager.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void InplaceReLUCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &variable) {
-+  MS_LOG(DEBUG) << "InplaceRelu cpu pyboost call start";
-+  PyBoostUtils::PrepareOpInputs(op->device_context(), op->stream_id(), variable);
-+  // Set inplace output
-+  op->set_outputs({variable});
-+  PyBoostUtils::DispatchRun(std::make_shared<runtime::PyBoostDeviceTask>([op, variable]() {
-+    auto device_context = op->device_context();
-+    const auto &outputs = op->outputs();
-+    // Malloc for input tensors
-+    PyBoostUtils::MallocOpInputs(device_context, variable);
-+
-+    const auto &input_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), op->input_abs(), variable);
-+    const auto &output_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), {op->input_abs()}, outputs);
-+
-+    PyBoostUtils::LaunchKernel(op->primitive(), op->device_context(), input_address_info, output_address_info);
-+    MS_LOG(DEBUG) << "InplaceRelu cpu pyboost launch end";
-+  }));
-+}
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-\ No newline at end of file
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.h b/mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.h
-new file mode 100644
-index 00000000000..c1e9653150f
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/inplace_relu.h
-@@ -0,0 +1,35 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#ifndef MINDSPORE_MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_INPLACE_RELU_H_
-+#define MINDSPORE_MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_INPLACE_RELU_H_
-+
-+#include <vector>
-+#include <memory>
-+#include "ir/tensor.h"
-+#include "ir/value.h"
-+#include "runtime/hardware/device_context_manager.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void InplaceReLUCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &variable);
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-+
-+#endif  // MINDSPORE_MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_INPLACE_RELU_H_
-\ No newline at end of file
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.cc b/mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.cc
-new file mode 100644
-index 00000000000..0eb5bac6a11
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.cc
-@@ -0,0 +1,67 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#include "mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.h"
-+#include "mindspore/ops/kernel/cpu/pyboost/auto_generate/stack_ext.h"
-+#include "mindspore/ccsrc/pyboost/pyboost_utils.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+#include "mindspore/ops/op_def/auto_generate/gen_ops_primitive_r.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+namespace {
-+void StackExtCustomizeCall(const std::shared_ptr<OpRunner> &op,
-+                           const std::vector<BaseTensorPtr> &tensors_tensor_list_vector, const Int64ImmPtr &dim) {
-+  // Async
-+  PyBoostUtils::DispatchRun(std::make_shared<runtime::PyBoostDeviceTask>([op, tensors_tensor_list_vector, dim]() {
-+    MS_LOG(DEBUG) << "Run device task Identity start";
-+    auto device_context = op->device_context();
-+    const auto &outputs = op->outputs();
-+
-+    // Malloc for input tensors
-+    PyBoostUtils::MallocOpInputs(device_context, tensors_tensor_list_vector);
-+    // Malloc for output tensors
-+    PyBoostUtils::MallocOpOutputs(device_context, outputs);
-+
-+    // Get inputs kernel tensors, the not-tensor value will malloc here
-+    const auto &input_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), op->input_abs(), tensors_tensor_list_vector, dim);
-+
-+    // Get outputs kernel tensors
-+    const auto &output_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), {op->output_abs()}, outputs);
-+
-+    PyBoostUtils::LaunchKernel(op->primitive(), op->device_context(), input_address_info, output_address_info,
-+                               op->stream_id());
-+    MS_LOG(DEBUG) << "Run device task Identity end";
-+  }));
-+}
-+}  // namespace
-+
-+void StackExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const ValueTuplePtr &tensors_tensor_list,
-+                          const Int64ImmPtr &dim) {
-+  OpRunner::InferOpOutput(op, tensors_tensor_list, dim);
-+  std::vector<BaseTensorPtr> tensors_tensor_list_vector = ConvertValueTupleToVector<BaseTensorPtr>(tensors_tensor_list);
-+
-+  PyBoostUtils::PrepareOpInputs(op->device_context(), op->stream_id(), tensors_tensor_list_vector);
-+  PyBoostUtils::PrepareOpOutputs(op->device_context(), op->stream_id(), op->outputs());
-+
-+  StackExtCustomizeCall(op, tensors_tensor_list_vector, dim);
-+}
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.h b/mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.h
-new file mode 100644
-index 00000000000..5965e17d23c
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/stack_ext.h
-@@ -0,0 +1,35 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_STACK_H_
-+#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_STACK_H_
-+
-+#include <vector>
-+#include <memory>
-+#include "ir/tensor.h"
-+#include "ir/value.h"
-+#include "runtime/hardware/device_context_manager.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void StackExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const ValueTuplePtr &tensors_tensor_list,
-+                          const Int64ImmPtr &dim);
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-+#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_STACK_H_
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/zeros.cc b/mindspore/ops/kernel/cpu/pyboost/customize/zeros.cc
-new file mode 100644
-index 00000000000..62a39a9543a
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/zeros.cc
-@@ -0,0 +1,61 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#include "mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.h"
-+#include "mindspore/ops/kernel/cpu/pyboost/auto_generate/zeros_like_ext.h"
-+#include "mindspore/ccsrc/pyboost/pyboost_utils.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+#include "mindspore/ops/op_def/auto_generate/gen_ops_primitive_r.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+namespace {
-+void ZerosCustomizeCall(const std::shared_ptr<OpRunner> &op) {
-+  // Async
-+  PyBoostUtils::DispatchRun(std::make_shared<runtime::PyBoostDeviceTask>([op]() {
-+    MS_LOG(DEBUG) << "Run device task Identity start";
-+    auto device_context = op->device_context();
-+    const auto &outputs = op->outputs();
-+
-+    // Malloc for output tensors
-+    PyBoostUtils::MallocOpOutputs(device_context, outputs);
-+
-+    // Get inputs kernel tensors, the not-tensor value will malloc here
-+    const auto &input_address_info = PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), op->input_abs());
-+
-+    // Get outputs kernel tensors
-+    const auto &output_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), {op->output_abs()}, outputs);
-+
-+    PyBoostUtils::LaunchKernel(op->primitive(), op->device_context(), input_address_info, output_address_info,
-+                               op->stream_id());
-+    MS_LOG(DEBUG) << "Run device task Identity end";
-+  }));
-+}
-+}  // namespace
-+
-+void ZerosCPUCustomize(const std::shared_ptr<OpRunner> &op, const ValueTuplePtr &size,
-+                       const std::optional<Int64ImmPtr> &dtype) {
-+  OpRunner::InferOpOutput(op, size, dtype);
-+
-+  PyBoostUtils::PrepareOpOutputs(op->device_context(), op->stream_id(), op->outputs());
-+
-+  ZerosCustomizeCall(op);
-+}
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/zeros.h b/mindspore/ops/kernel/cpu/pyboost/customize/zeros.h
-new file mode 100644
-index 00000000000..661aaf31fce
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/zeros.h
-@@ -0,0 +1,35 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_H_
-+#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_H_
-+
-+#include <vector>
-+#include <memory>
-+#include "ir/tensor.h"
-+#include "ir/value.h"
-+#include "runtime/hardware/device_context_manager.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void ZerosCPUCustomize(const std::shared_ptr<OpRunner> &op, const ValueTuplePtr &size,
-+                       const std::optional<Int64ImmPtr> &dtype);
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-+#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_LIKE_H_
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.cc b/mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.cc
-new file mode 100644
-index 00000000000..77ead92978d
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.cc
-@@ -0,0 +1,66 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#include "mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.h"
-+#include "mindspore/ops/kernel/cpu/pyboost/auto_generate/zeros_like_ext.h"
-+#include "mindspore/ccsrc/pyboost/pyboost_utils.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+#include "mindspore/ops/op_def/auto_generate/gen_ops_primitive_r.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+namespace {
-+void ZerosLikeExtCustomizeCall(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor) {
-+  // Async
-+  PyBoostUtils::DispatchRun(std::make_shared<runtime::PyBoostDeviceTask>([op, x_tensor]() {
-+    MS_LOG(DEBUG) << "Run device task Identity start";
-+    auto device_context = op->device_context();
-+    const auto &outputs = op->outputs();
-+
-+    // Malloc for input tensors
-+    PyBoostUtils::MallocOpInputs(device_context, x_tensor);
-+    // Malloc for output tensors
-+    PyBoostUtils::MallocOpOutputs(device_context, outputs);
-+
-+    // Get inputs kernel tensors, the not-tensor value will malloc here
-+    const auto &input_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), op->input_abs(), x_tensor);
-+
-+    // Get outputs kernel tensors
-+    const auto &output_address_info =
-+      PyBoostUtils::GetAddressInfo(device_context, op->stream_id(), {op->output_abs()}, outputs);
-+
-+    PyBoostUtils::LaunchKernel(op->primitive(), op->device_context(), input_address_info, output_address_info,
-+                               op->stream_id());
-+    MS_LOG(DEBUG) << "Run device task Identity end";
-+  }));
-+}
-+}  // namespace
-+
-+void ZerosLikeExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor,
-+                              const std::optional<Int64ImmPtr> &dtype) {
-+  MS_LOG(ERROR) << "now in infer: ZerosLikeExtCPUCustomize";
-+  OpRunner::InferOpOutput(op, x_tensor, dtype);
-+  MS_LOG(ERROR) << "now in cpu customize: ZerosLikeExtCPUCustomize";
-+  PyBoostUtils::PrepareOpInputs(op->device_context(), op->stream_id(), x_tensor);
-+  PyBoostUtils::PrepareOpOutputs(op->device_context(), op->stream_id(), op->outputs());
-+
-+  ZerosLikeExtCustomizeCall(op, x_tensor);
-+}
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-diff --git a/mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.h b/mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.h
-new file mode 100644
-index 00000000000..850e8e2f908
---- /dev/null
-+++ b/mindspore/ops/kernel/cpu/pyboost/customize/zeros_like_ext.h
-@@ -0,0 +1,35 @@
-+/**
-+ * Copyright 2025 Huawei Technologies Co., Ltd
-+ *
-+ * Licensed under the Apache License, Version 2.0 (the "License");
-+ * you may not use this file except in compliance with the License.
-+ * You may obtain a copy of the License at
-+ *
-+ * http://www.apache.org/licenses/LICENSE-2.0
-+ *
-+ * Unless required by applicable law or agreed to in writing, software
-+ * distributed under the License is distributed on an "AS IS" BASIS,
-+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-+ * See the License for the specific language governing permissions and
-+ * limitations under the License.
-+ */
-+
-+#ifndef MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_LIKE_H_
-+#define MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_LIKE_H_
-+
-+#include <vector>
-+#include <memory>
-+#include "ir/tensor.h"
-+#include "ir/value.h"
-+#include "runtime/hardware/device_context_manager.h"
-+#include "mindspore/ccsrc/pyboost/op_runner.h"
-+
-+namespace mindspore {
-+namespace kernel {
-+namespace pyboost {
-+void ZerosLikeExtCPUCustomize(const std::shared_ptr<OpRunner> &op, const BaseTensorPtr &x_tensor,
-+                              const std::optional<Int64ImmPtr> &dtype);
-+}  // namespace pyboost
-+}  // namespace kernel
-+}  // namespace mindspore
-+#endif  // MINDSPORE_CCSRC_PLUGIN_DEVICE_CPU_KERNEL_PYBOOST_CUSTOMIZE_ZEROS_LIKE_H_
-diff --git a/mindspore/ops/kernel/cpu/reduce_cpu_kernel.cc b/mindspore/ops/kernel/cpu/reduce_cpu_kernel.cc
-index 8c320fa2fbe..40628f215cf 100644
---- a/mindspore/ops/kernel/cpu/reduce_cpu_kernel.cc
-+++ b/mindspore/ops/kernel/cpu/reduce_cpu_kernel.cc
-@@ -278,12 +278,17 @@ void ReduceCpuKernelFunc<T>::HandleInputAxis() {
- 
- template <typename T>
- int ReduceCpuKernelFunc<T>::Resize(const std::vector<KernelTensor *> &inputs, const std::vector<KernelTensor *> &) {
-+  MS_LOG(ERROR) << "input size: " << inputs.size();
-   input_shape_ = inputs[kIndex0]->GetDeviceShapeVector();
-   if (inputs[kIndex1]->GetType()->isa<TypeNone>()) {
-     axis_ = std::vector<int64_t>{};
-   } else {
-     axis_ = inputs[kIndex1]->GetValueWithCheck<std::vector<int64_t>>();
-+    MS_LOG(ERROR) << "axis_: " << axis_;
-   }
-+
-+  MS_LOG(ERROR) << "keep dim: " << inputs[kIndex2]->GetValueWithCheck<bool>();
-+
-   if (kernel_name_ == kReduceSum) {
-     skip_mode_ = inputs[kIndex3]->GetValueWithCheck<bool>();
-   }
-diff --git a/mindspore/ops/kernel/cpu/reduce_cpu_kernel.h b/mindspore/ops/kernel/cpu/reduce_cpu_kernel.h
-index 7a9c03b8ccd..a0eb7deaff4 100644
---- a/mindspore/ops/kernel/cpu/reduce_cpu_kernel.h
-+++ b/mindspore/ops/kernel/cpu/reduce_cpu_kernel.h
-@@ -52,6 +52,7 @@ class ReduceCpuKernelMod : public NativeCpuKernelMod {
-     if (kernel_type_ == kReduceAll) {
-       return CastBoolLaunch(inputs, workspace, outputs);
-     }
-+    MS_LOG(ERROR) << "call ReduceCpuKernelMod::Launch, kernel_type_: " << kernel_type_;
-     return func_obj_->RunFunc(inputs, workspace, outputs);
-   }
- 
+   return GetKernelAttr(op_name, kernel_mod, GetInputTypeFromAbstractBase(inputs_abs),
 diff --git a/mindspore/ops/op_def/yaml/acos_ext_op.yaml b/mindspore/ops/op_def/yaml/acos_ext_op.yaml
-index d786e94a0db..bbf3e4f6cb6 100644
+index d786e94a0db..f5cd6ecdcb5 100644
 --- a/mindspore/ops/op_def/yaml/acos_ext_op.yaml
 +++ b/mindspore/ops/op_def/yaml/acos_ext_op.yaml
-@@ -10,5 +10,5 @@ acos_ext:
+@@ -10,5 +10,4 @@ acos_ext:
          name: AcosExt
      dispatch:
          enable: True
 -        CPU: None
--        GPU: None
-+        CPU: AcosExtCPU
-+        GPU: AcosExtGPU
+         GPU: None
 diff --git a/mindspore/ops/op_def/yaml/atan_ext_op.yaml b/mindspore/ops/op_def/yaml/atan_ext_op.yaml
-index 7a16fc8d666..90727ba7ea1 100644
+index 7a16fc8d666..c9e48768506 100644
 --- a/mindspore/ops/op_def/yaml/atan_ext_op.yaml
 +++ b/mindspore/ops/op_def/yaml/atan_ext_op.yaml
-@@ -10,5 +10,5 @@ atan_ext:
+@@ -10,5 +10,4 @@ atan_ext:
          name: AtanExt
      dispatch:
          enable: True
 -        CPU: None
-+        CPU: AtanExtCPU
          GPU: None
-diff --git a/mindspore/ops/op_def/yaml/inplace_relu_op.yaml b/mindspore/ops/op_def/yaml/inplace_relu_op.yaml
-index 7f0574dfe1f..f20fecf8b07 100644
---- a/mindspore/ops/op_def/yaml/inplace_relu_op.yaml
-+++ b/mindspore/ops/op_def/yaml/inplace_relu_op.yaml
-@@ -18,3 +18,4 @@ inplace_relu:
-   dispatch:
-     enable: True
-     Ascend: InplaceReLUAscend
-+    CPU: InplaceReLUCPU
 diff --git a/mindspore/ops/op_def/yaml/stack_ext_op.yaml b/mindspore/ops/op_def/yaml/stack_ext_op.yaml
-index 297194e923f..93858289e2c 100644
+index 297194e923f..fb5a6ce0c95 100644
 --- a/mindspore/ops/op_def/yaml/stack_ext_op.yaml
 +++ b/mindspore/ops/op_def/yaml/stack_ext_op.yaml
-@@ -13,5 +13,5 @@ stack_ext:
+@@ -13,5 +13,4 @@ stack_ext:
              dtype: tensor
      dispatch:
          enable: True
 -        CPU: None
-+        CPU: StackExtCPU
          GPU: None
 diff --git a/mindspore/ops/op_def/yaml/zeros_like_ext_op.yaml b/mindspore/ops/op_def/yaml/zeros_like_ext_op.yaml
-index f300c3c8677..0236680bdbe 100644
+index f300c3c8677..f8fe63d5f6a 100644
 --- a/mindspore/ops/op_def/yaml/zeros_like_ext_op.yaml
 +++ b/mindspore/ops/op_def/yaml/zeros_like_ext_op.yaml
-@@ -15,5 +15,5 @@ zeros_like_ext:
+@@ -15,5 +15,4 @@ zeros_like_ext:
      dispatch:
          enable: True
          Ascend: ZerosLikeExtAscend
 -        CPU: None
-+        CPU: ZerosLikeExtCPU
          GPU: None
-diff --git a/mindspore/ops/op_def/yaml/zeros_op.yaml b/mindspore/ops/op_def/yaml/zeros_op.yaml
-index 3f2c8c9ad81..c9f0adaa291 100644
---- a/mindspore/ops/op_def/yaml/zeros_op.yaml
-+++ b/mindspore/ops/op_def/yaml/zeros_op.yaml
-@@ -16,3 +16,4 @@ zeros:
-     dispatch:
-         enable: True
-         Ascend: ZerosAscend
-+        CPU: ZerosCPU
-diff --git a/mindspore/python/mindspore/common/tensor.py b/mindspore/python/mindspore/common/tensor.py
-index 2e6cd0d575f..4575b05c61a 100644
---- a/mindspore/python/mindspore/common/tensor.py
-+++ b/mindspore/python/mindspore/common/tensor.py
-@@ -3833,6 +3833,23 @@ class Tensor(TensorPy_, metaclass=_TensorMeta):
-         """
-         return TensorPy_._data_ptr(self)
- 
-+    def data_ptr(self):
-+        r"""
-+        Get the data ptr address of tensor, for CPU is host address, GPU/NPU is device address.
-+        User should know how to use the data ptr address.
-+        Note: this api is an experimental api, users need understatnd it before use.
-+
-+        Supported Platforms:
-+            ``CPU/GPU/Ascend``
-+
-+        Examples:
-+            >>> import mindspore as ms
-+            >>> from mindspore import Tensor
-+            >>> x = ms.Tensor([1, 2, 3], ms.int64)
-+            >>> data_ptr = x._data_ptr()
-+        """
-+        return TensorPy_._data_ptr(self)
-+
-     def normal_(self, mean=0, std=1, *, generator=None):
-         r"""
-         Update the `self` tensor in place by generating random numbers sampled from the normal
