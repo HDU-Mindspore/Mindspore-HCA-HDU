@@ -1,26 +1,86 @@
-echo "build op_plugin.so"
-PYTORCHPATH=$(python3 -c 'import torch, os; print(os.path.dirname(torch.__file__))')
-PYTHONINCLUDEPATH=$(python3 -c "import sysconfig; print(sysconfig.get_path('include'))")
+#!/bin/bash
+# Copyright 2025 Huawei Technologies Co., Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# 检查build目录是否存在
-if [ ! -d "build" ]; then
-    # 如果不存在则创建
-    mkdir -p build
-    echo "create build"
-else
-    echo "build exits"
+export MS_OP_PLUGIN_PATH_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/" && pwd )"
+BUILD_DIR="${MS_OP_PLUGIN_PATH_DIR}/build"
+OUTPUT_PATH="${MS_OP_PLUGIN_PATH_DIR}/output"
+
+mk_new_dir()
+{
+    local create_dir="$1"
+
+    if [[ -d "${create_dir}" ]]; then
+        rm -rf "${create_dir}"
+    fi
+
+    mkdir -pv "${create_dir}"
+}
+
+write_checksum_tar()
+{
+    cd "$OUTPUT_PATH" || exit
+    PACKAGE_LIST=$(ls lib*.tar.gz) || exit
+    for PACKAGE_NAME in $PACKAGE_LIST; do
+        echo $PACKAGE_NAME
+        sha256sum -b "$PACKAGE_NAME" >"$PACKAGE_NAME.sha256"
+    done
+}
+
+check_binary_file()
+{
+  local binary_dir="$1"
+  for cur_file in `ls "${binary_dir}"/*.o`
+  do
+    file_lines=`cat "${cur_file}" | wc -l`
+    if [ ${file_lines} -eq 3 ]; then
+        check_sha=`cat ${cur_file} | grep "oid sha256"`
+        if [ $? -eq 0 ]; then
+            echo "-- Warning: ${cur_file} is not a valid binary file."
+            return 1
+        fi
+    fi
+  done
+  return 0
+}
+
+# Parse arguments
+THREAD_NUM=32
+
+# Create directories
+mkdir -pv "${BUILD_DIR}"
+mkdir -pv "${OUTPUT_PATH}"
+
+echo "---------------- MindSpore_Op_Plugin: build start ----------------"
+
+# Build target
+cd $BUILD_DIR
+cmake .. 
+make -j$THREAD_NUM
+
+if [ ! -f "libms_op_plugin.so" ];then
+  echo "[ERROR] libms_op_plugin.so not exist!"
+  exit 1
 fi
 
-if [ -z "$CXX" ]; then
-    # 如果 CC 未定义，则使用 g++
-    COMPILER="g++"
-else
-    # 如果 CC 已定义，则使用其值
-    COMPILER="$CXX"
-fi
+# Copy target to output/ directory
+cp libms_op_plugin.so ${OUTPUT_PATH}
+cd ${OUTPUT_PATH}
+tar czvf libms_op_plugin.tar.gz libms_op_plugin.so
+rm -rf libms_op_plugin.so
+write_checksum_tar
+bash ${MS_OP_PLUGIN_PATH_DIR}/package.sh
 
-$COMPILER -MMD -MF ./build/op_plugin.o.d -Wno-unused-result -Wsign-compare -DNDEBUG -O2 -Wall  -fPIC -I$PYTORCHPATH/include -I$PYTORCHPATH/include/torch/csrc/api/include -I$PYTORCHPATH/include/TH -I$PYTORCHPATH/include/THC -I$PYTHONINCLUDEPATH -c ./src/op_plugin.cpp -o ./build/op_plugin.o -DTORCH_API_INCLUDE_EXTENSION_H -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++17
-
-$COMPILER -MMD -MF ./build/ms_ext.o.d -Wno-unused-result -Wsign-compare -DNDEBUG -O2 -Wall  -fPIC -I$PYTORCHPATH/include -I$PYTORCHPATH/include/torch/csrc/api/include -I$PYTORCHPATH/include/TH -I$PYTORCHPATH/include/THC -I$PYTHONINCLUDEPATH -c ./src/ms_ext.cpp -o ./build/ms_ext.o -DTORCH_API_INCLUDE_EXTENSION_H -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++17
-
-$COMPILER -shared ./build/ms_ext.o ./build/op_plugin.o -L$PYTORCHPATH/lib -lc10 -ltorch -ltorch_cpu -ltorch_python -o build/op_plugin.so
+cd -
+echo "---------------- MindSpore_Op_Plugin: build end ----------------"
