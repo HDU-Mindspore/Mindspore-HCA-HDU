@@ -17,6 +17,10 @@ op_plugin for mindspore
 
 1.  测试CPU算子 `test/test_acos.py`.
 
+#### 注意事项
+
+1.  若需要和 pytorch 共进程运行，则只能安装 torch 2.1.0 版本，否则会导致共享库冲突，产生找不到符号表等未定义的行为。
+
 #### 参与贡献
 
 1.  Fork 本仓库

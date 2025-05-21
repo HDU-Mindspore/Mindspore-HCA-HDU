@@ -30,53 +30,47 @@ def generate_ones_grad(shape, dtype):
     return np.ones(shape).astype(dtype)
 
 
-def generate_expect_forward_output(dst, src):
-    dst = dst * 1
-    dst.copy_(src)
-    return dst
+def generate_expect_forward_output(x):
+    return torch.atan(x)
 
 
-def generate_expect_backward_output(dst, src, grad):
-    src.requires_grad = True
-    dst = dst * 1
-    out = dst.copy_(src)
+def generate_expect_backward_output(x, grad):
+    x.requires_grad = True
+    out = torch.atan(x)
     out.backward(grad)
-    d_src = src.grad
-    return d_src
+    dx = x.grad
+    return dx
 
 
-def copy__forward_func(dst, src):
-    dst = dst * 1
-    dst.copy_(src)
-    return dst
+def atan_forward_func(x):
+    return mint.atan(x)
 
 
-def copy__backward_func(dst, src):
-    return ops.grad(copy__forward_func, (1, ))(dst, src)
+def atan_backward_func(x):
+    return ops.grad(atan_forward_func, (0,))(x)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_copy__std(mode):
+def test_atan_std(mode):
     """
     Feature: standard forward, backward features.
-    Description: test function copy_.
+    Description: test function atan.
     Expectation: expect correct result.
     """
-    dst = generate_random_input((2, 3, 4), np.float32)
-    src = generate_random_input((2, 3, 4), np.float32)
-    expect = generate_expect_forward_output(torch.Tensor(dst), torch.Tensor(src))
+    x = generate_random_input((2, 3, 4), np.float32)
+    expect = generate_expect_forward_output(torch.Tensor(x))
 
     grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
-    expect_grad = generate_expect_backward_output(torch.Tensor(dst), torch.Tensor(src), torch.Tensor(grad))
+    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(grad))
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = copy__forward_func(ms.Tensor(dst), ms.Tensor(src))
-        output_grad = copy__backward_func(ms.Tensor(dst), ms.Tensor(src))
+        output = atan_forward_func(ms.Tensor(x))
+        output_grad = atan_backward_func(ms.Tensor(x))
     else:
-        output = (jit(copy__forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(dst), ms.Tensor(src))
-        output_grad = (jit(copy__backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(dst), ms.Tensor(src))
+        output = (jit(atan_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output_grad = (jit(atan_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
 
     assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
     assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)

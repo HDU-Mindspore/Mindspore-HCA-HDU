@@ -29,45 +29,47 @@ def generate_random_input(shape, dtype):
     return np.random.randn(*shape).astype(dtype)
 
 
-def copy__forward_perf(dst, src):
-    print("================shape: ", dst.shape)
+def sin_forward_perf(input):
+    op = mint.sin
+    print("================shape: ", input.shape)
 
     for _ in range(1000):
-        dst.copy_(src)
+        output = op(input)
 
     _pynative_executor.sync()
     start = time.time()
     for _ in range(1000):
-        dst.copy_(src)
+        output = op(input)
     _pynative_executor.sync()
     end = time.time()
 
-    print(f"MindSpore Tensor.copy_ e2e time: ", (end-start))
+    print(f"MindSpore {op} e2e time: ", (end-start))
     return  end-start
 
 
-def generate_expect_forward_perf(dst, src):
-    print("================shape: ", dst.shape)
+def generate_expect_forward_perf(input):
+
+    op = torch.sin
+    print("================shape: ", input.shape)
 
     for _ in range(1000):
-        dst.copy_(src)
+        op(input)
 
     start = time.time()
     for _ in range(1000):
-        dst.copy_(src)
+        op(input)
     end = time.time()
 
-    print(f"Torch Tensor.copy_ e2e time: ", end-start)
+    print(f"Torch {op} e2e time: ", end-start)
     return end-start
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_copy__perf(mode):
-    shape = (10, 10, 10, 10, 10, 10, 10)
-    dst = generate_random_input(shape, np.float32)
-    src = generate_random_input(shape, np.float32)
-    ms_perf = copy__forward_perf(ms.Tensor(dst), ms.Tensor(src))
-    expect_perf = generate_expect_forward_perf(torch.Tensor(dst), torch.Tensor(src))
+def test_sin_perf(mode):
+    shape = (10, 10, 10, 10, 10, 10)
+    input = generate_random_input(shape, np.float32)
+    ms_perf = sin_forward_perf(ms.Tensor(input))
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input))
     assert np.less(ms_perf, expect_perf * 2).all()
 
