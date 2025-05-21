@@ -9,6 +9,6 @@ extern "C" int InplaceReLU(int nparam, void **params, int *ndims, int64_t **shap
   auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input = tensors[0];
   auto at_output = tensors[1];
-  at::relu_out(at_output, at_input);
+  at::relu_(at_input);
   return 0;
 }
