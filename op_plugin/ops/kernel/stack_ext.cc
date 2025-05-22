@@ -30,6 +30,6 @@ extern "C" int UnstackExtView(int nparam, void **params, int *ndims, int64_t **s
   KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra_void);
   int64_t dim = kernel_input_info->GetKernelInput<int64_t>(1);
 
-  at::stack_out(tensors, input_tensor, dim);
+  at::unbind_copy_out(tensors, input_tensor, dim);
   return 0;
 }
