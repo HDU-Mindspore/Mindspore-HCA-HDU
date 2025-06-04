@@ -17,11 +17,11 @@
 #include <torch/extension.h>
 #include <iostream>
 
-#include "utils/ms_ext.h"
+#include "utils/op_utils.h"
 
 extern "C" int Clone(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                       void *extra) {
-  auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
+  auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input = tensors[0];
   auto at_output = tensors[1];
   at_output.copy_(at_input);

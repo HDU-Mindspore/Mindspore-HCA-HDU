@@ -28,3 +28,5 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_perf_relu_.py'])
     pytest.main(['tests/st/mint/test_perf_stack.py'])
     pytest.main(['tests/st/mint/test_perf_clone.py'])
+    # FIXME: index 算子性能不达标，原因是torch走View，MS暂时不支持。
+    pytest.main(['tests/st/mint/test_perf_index.py'])
