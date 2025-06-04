@@ -1,10 +1,25 @@
+/**
+ * Copyright 2025 Huawei Technologies Co., Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <string.h>
 #include <vector>
 #include <torch/extension.h>  // 头文件引用部分
 
 // 将 mindspore kernel 的 inputs/outputs 转换为 pytorch 的 tensor
-std::vector<at::Tensor> get_torch_tensors(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes,
-                                          c10::Device device);
+std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes,
+                                                c10::DeviceType device_type = c10::kCPU);
 
 // 将入参没有输出的pytorch 算子的计算结果拷贝到kernel的输出内存
 void output_memcpy(void *output, const torch::Tensor &t);

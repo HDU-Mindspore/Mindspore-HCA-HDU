@@ -18,12 +18,17 @@
 #include <iostream>
 
 #include "utils/op_utils.h"
-
-extern "C" int InplaceCopy(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
-                      void *extra) {
+extern "C" int UnstackExtView(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes,
+                              void *stream, void *extra_void){
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
-  auto at_self = tensors[0];
-  auto at_src = tensors[1];
-  at_self.copy_(at_src);
+
+  auto input_tensor = tensors[0];
+
+  tensors.erase(tensors.begin(), tensors.begin() + 2);
+
+  KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra_void);
+  int64_t dim = kernel_input_info->GetKernelInput<int64_t>(1);
+
+  at::unbind_copy_out(tensors, input_tensor, dim);
   return 0;
 }
