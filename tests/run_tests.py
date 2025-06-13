@@ -7,15 +7,21 @@ context.set_context(mode=context.PYNATIVE_MODE)
 ms.set_device('CPU')
 
 if __name__ == '__main__':
+    pytest.main(['tests/st/mint/test_asin.py'])
     pytest.main(['tests/st/mint/test_acos.py'])
     pytest.main(['tests/st/mint/test_copy_.py'])
     pytest.main(['tests/st/mint/test_sin.py'])
+    pytest.main(['tests/st/mint/test_cos.py'])
     pytest.main(['tests/st/mint/test_atan.py'])
     # FIXME:relu_算子，由于当前框架CPU后端不支持原地更新算子的输入输出共用同一个Tensor，会导致反向精度不正确，因此不执行反向测试用例
     pytest.main(['tests/st/mint/test_relu_.py'])
     # FIXME:stack算子，由于框架不支持Tuple(Tensor)类型输入，因此不执行stack测试用例
     # pytest.main(['tests/st/mint/test_stack.py'])
     pytest.main(['tests/st/mint/test_clone.py'])
+    pytest.main(['tests/st/mint/test_exp.py'])
+    
+    # FIXME: zeros_like grad error
+    # pytest.main(['tests/st/mint/test_zeros_like.py'])
 
     # FIXME:执行性能用例时，需要把MS日志级别设置为ERROR级别，否则太多Warning日志会影响性能。
     pytest.main(['tests/st/mint/test_perf_acos.py'])
