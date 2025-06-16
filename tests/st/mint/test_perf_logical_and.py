@@ -69,6 +69,6 @@ def test_logical_perf(mode):
     input = generate_random_input(shape, np.float32)
     other = generate_random_input(shape, np.float32)
     ms_perf = logical_and_forward_perf(ms.Tensor(input), ms.Tensor(other))
-    expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other)
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other))
     assert np.less(ms_perf, expect_perf * 2).all()
 
