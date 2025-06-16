@@ -26,28 +26,12 @@ def generate_random_input(shape, dtype):
     return np.random.uniform(-1, 1, shape).astype(dtype)
 
 
-def generate_ones_grad(shape, dtype):
-    return np.ones(shape).astype(dtype)
+def generate_expect_forward_output(x, other):
+    return torch.logical_and(x, other)
 
 
-def generate_expect_forward_output(x, other, rounding_mode=None):
-    return torch.logical_and(x, other, rounding_mode)
-
-
-def generate_expect_backward_output(x, other, grad, rounding_mode=None):
-    x.requires_grad = True
-    out = torch.logical_and(x, other, rounding_mode)
-    out.backward(grad)
-    dx = x.grad
-    return dx
-
-
-def logical_and_forward_func(x, other, rounding_mode=None):
-    return mint.logical_and(x, other, rounding_mode)
-
-
-def logical_and_backward_func(x, other, grad, rounding_mode=None):
-    return ops.grad(logical_and_forward_func, (0,))(x, other)
+def logical_and_forward_func(x, other):
+    return mint.logical_and(x, other)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
@@ -62,20 +46,12 @@ def test_logical_and_std(mode):
     other = generate_random_input((2, 3, 4), np.float32)
     expect = generate_expect_forward_output(torch.Tensor(x), torch.Tensor(other))
 
-    grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
-    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(other), torch.Tensor(grad))
-
     ms_x = ms.Tensor(x)
     ms_other = ms.Tensor(other)
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
         output = logical_and_forward_func(ms_x, ms_other)
-        output_grad = logical_and_backward_func(ms_x, ms_other)
     else:
         output = (jit(logical_and_forward_func, backend="ms_backend", jit_level="O0"))(ms_x, ms_other)
-        output_grad = (jit(logical_and_backward_func, backend="ms_backend", jit_level="O0"))(ms_x, ms_other)
 
     assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
-    assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
-
-
