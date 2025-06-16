@@ -30,24 +30,24 @@ def generate_ones_grad(shape, dtype):
     return np.ones(shape).astype(dtype)
 
 
-def generate_expect_forward_output(x, other, rounding_mode=None):
-    return torch.logical_not(x, other, rounding_mode)
+def generate_expect_forward_output(x):
+    return torch.logical_not(x)
 
 
-def generate_expect_backward_output(x, other, grad, rounding_mode=None):
+def generate_expect_backward_output(x, grad):
     x.requires_grad = True
-    out = torch.logical_not(x, other, rounding_mode)
+    out = torch.logical_not(x)
     out.backward(grad)
     dx = x.grad
     return dx
 
 
-def logical_not_forward_func(x, other, rounding_mode=None):
-    return mint.logical_not(x, other, rounding_mode)
+def logical_not_forward_func(x):
+    return mint.logical_not(x)
 
 
-def logical_not_backward_func(x, other, grad, rounding_mode=None):
-    return ops.grad(logical_not_forward_func, (0,))(x, other)
+def logical_not_backward_func(x, grad):
+    return ops.grad(logical_not_forward_func, (0,))(x)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
@@ -59,21 +59,19 @@ def test_logical_not_std(mode):
     Expectation: expect correct result.
     """
     x = generate_random_input((2, 3, 4), np.float32)
-    other = generate_random_input((2, 3, 4), np.float32)
-    expect = generate_expect_forward_output(torch.Tensor(x), torch.Tensor(other))
+    expect = generate_expect_forward_output(torch.Tensor(x))
 
     grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
-    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(other), torch.Tensor(grad))
+    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(grad))
 
     ms_x = ms.Tensor(x)
-    ms_other = ms.Tensor(other)
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = logical_not_forward_func(ms_x, ms_other)
-        output_grad = logical_not_backward_func(ms_x, ms_other)
+        output = logical_not_forward_func(ms_x)
+        output_grad = logical_not_backward_func(ms_x)
     else:
-        output = (jit(logical_not_forward_func, backend="ms_backend", jit_level="O0"))(ms_x, ms_other)
-        output_grad = (jit(logical_not_backward_func, backend="ms_backend", jit_level="O0"))(ms_x, ms_other)
+        output = (jit(logical_not_forward_func, backend="ms_backend", jit_level="O0"))(ms_x)
+        output_grad = (jit(logical_not_backward_func, backend="ms_backend", jit_level="O0"))(ms_x)
 
     assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
     assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
