@@ -18,6 +18,8 @@ if __name__ == '__main__':
     # FIXME:stack算子，由于框架不支持Tuple(Tensor)类型输入，因此不执行stack测试用例
     # pytest.main(['tests/st/mint/test_stack.py'])
     pytest.main(['tests/st/mint/test_clone.py'])
+    pytest.main(['tests/st/mint/test_logical_and.py'])
+    pytest.main(['tests/st/mint/test_logical_not.py'])
     pytest.main(['tests/st/mint/test_exp.py'])
     
     # FIXME: zeros_like grad error
@@ -36,3 +38,5 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_perf_clone.py'])
     # FIXME: index 算子性能不达标，原因是torch走View，MS暂时不支持。
     pytest.main(['tests/st/mint/test_perf_index.py'])
+    pytest.main(['tests/st/mint/test_perf_logical_and.py'])
+    pytest.main(['tests/st/mint/test_perf_logical_not.py'])
