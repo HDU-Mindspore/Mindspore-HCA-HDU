@@ -43,7 +43,7 @@ def test_logical_and_std(mode):
     Expectation: expect correct result.
     """
     x = generate_random_input((2, 3, 4))
-    other = generate_random_input((2, 3, 4), np.float32)
+    other = generate_random_input((2, 3, 4))
     expect = generate_expect_forward_output(torch.Tensor(x), torch.Tensor(other))
 
     ms_x = ms.Tensor(x)
