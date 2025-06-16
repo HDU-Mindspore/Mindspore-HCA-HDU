@@ -1,0 +1,6 @@
+build/
+dist/
+ms_op_plugin.egg-info/
+output/
+
+*__pycache__*

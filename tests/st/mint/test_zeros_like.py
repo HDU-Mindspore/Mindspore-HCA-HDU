@@ -26,20 +26,8 @@ def generate_random_input(shape, dtype):
     return np.random.uniform(-1, 1, shape).astype(dtype)
 
 
-def generate_ones_grad(shape, dtype):
-    return np.ones(shape).astype(dtype)
-
-
 def generate_expect_forward_output(x):
     return torch.zeros_like(x)
-
-
-def generate_expect_backward_output(x, grad):
-    x.requires_grad = True
-    out = torch.zeros_like(x)
-    out.backward(grad)
-    dx = x.grad
-    return dx
 
 
 def zeros_like_forward_func(x):
@@ -66,8 +54,7 @@ def test_zeros_like_std(mode):
     x = generate_random_input((2, 3, 4), np.float32)
     expect = generate_expect_forward_output(torch.Tensor(x))
 
-    grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
-    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(grad))
+    expect_grad = 0
 
     if mode == "pynative":
         ms.context.set_context(mode=ms.PYNATIVE_MODE)

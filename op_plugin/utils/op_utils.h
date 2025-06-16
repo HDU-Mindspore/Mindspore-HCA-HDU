@@ -17,6 +17,9 @@
 #include <vector>
 #include <torch/extension.h>  // 头文件引用部分
 
+// 将mindspore的数据类型转化为pytorch的标准数据类型序号
+int8_t GetDtype(const std::string &dtypes);
+
 // 将 mindspore kernel 的 inputs/outputs 转换为 pytorch 的 tensor
 std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes,
                                                 c10::DeviceType device_type = c10::kCPU);
