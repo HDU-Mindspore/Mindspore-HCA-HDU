@@ -25,8 +25,8 @@ import time
 import pytest
 
 
-def generate_random_input(shape, dtype):
-    return np.random.randn(*shape).astype(dtype)
+def generate_random_input(shape):
+    return np.random.choice([False, True], shape, [0.5, 0.5])
 
 
 def logical_not_forward_perf(input):
@@ -68,7 +68,7 @@ def generate_expect_forward_perf(input):
 @pytest.mark.parametrize('mode', ['pynative'])
 def test_logical_perf(mode):
     shape = (10, 10, 10, 10, 10, 10)
-    input = generate_random_input(shape, np.float32)
+    input = generate_random_input(shape)
     ms_perf = logical_not_forward_perf(ms.Tensor(input))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input))
     assert np.less(ms_perf, expect_perf * 2).all()

@@ -22,8 +22,8 @@ from tests.utils.mark_utils import arg_mark
 import torch
 
 
-def generate_random_input(shape, dtype):
-    return np.random.uniform(-1, 1, shape).astype(dtype)
+def generate_random_input(shape):
+    return np.random.choice([False, True], shape, [0.5, 0.5])
 
 
 def generate_expect_forward_output(x, other):
@@ -42,7 +42,7 @@ def test_logical_and_std(mode):
     Description: test function logical_and.
     Expectation: expect correct result.
     """
-    x = generate_random_input((2, 3, 4), np.float32)
+    x = generate_random_input((2, 3, 4))
     other = generate_random_input((2, 3, 4), np.float32)
     expect = generate_expect_forward_output(torch.Tensor(x), torch.Tensor(other))
 
