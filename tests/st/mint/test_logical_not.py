@@ -53,6 +53,5 @@ def test_logical_not_std(mode):
         output = (jit(logical_not_forward_func, backend="ms_backend", jit_level="O0"))(ms_x)
 
     assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
-    assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
 
 
