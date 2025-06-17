@@ -66,7 +66,7 @@ def generate_expect_forward_perf(input):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_logical_perf(mode):
+def test_logical_not_perf(mode):
     shape = (10, 10, 10, 10, 10, 10)
     input = generate_random_input(shape)
     ms_perf = logical_not_forward_perf(ms.Tensor(input))

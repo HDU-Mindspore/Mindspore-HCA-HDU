@@ -25,20 +25,20 @@ import time
 import pytest
 
 
-def generate_random_input(shape):
-    return np.random.choice([False, True], shape, [0.5, 0.5])
+def generate_random_input(shape, dtype):
+    return np.random.uniform(-1, 1, shape).astype(dtype)
 
 
-def logical_and_forward_perf(input, other):
-    op = mint.logical_and
+def bmm_ext_forward_perf(input, mat2):
+    op = mint.bmm
 
     for _ in range(1000):
-        output = op(input, other)
+        output = op(input, mat2)
 
     _pynative_executor.sync()
     start = time.time()
     for _ in range(1000):
-        output = op(input, other)
+        output = op(input, mat2)
     _pynative_executor.sync()
     end = time.time()
 
@@ -46,16 +46,16 @@ def logical_and_forward_perf(input, other):
     return  end-start
 
 
-def generate_expect_forward_perf(input, other):
+def generate_expect_forward_perf(input, mat2):
 
-    op = torch.logical_and
+    op = torch.bmm
 
     for _ in range(1000):
-        op(input, other)
+        op(input, mat2)
 
     start = time.time()
     for _ in range(1000):
-        op(input, other)
+        op(input, mat2)
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)
@@ -64,11 +64,12 @@ def generate_expect_forward_perf(input, other):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_logical_and_perf(mode):
-    shape = (10, 10, 10, 10, 10, 10)
-    input = generate_random_input(shape)
-    other = generate_random_input(shape)
-    ms_perf = logical_and_forward_perf(ms.Tensor(input), ms.Tensor(other))
-    expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other))
+def test_bmm_ext_perf(mode):
+    shape1 = (10, 10, 20)
+    shape2 = (10, 20, 10)
+    input = generate_random_input(shape1, np.float32)
+    mat2 = generate_random_input(shape2, np.float32)
+    ms_perf = bmm_ext_forward_perf(ms.Tensor(input), ms.Tensor(mat2))
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(mat2))
     assert np.less(ms_perf, expect_perf * 2).all()
 
