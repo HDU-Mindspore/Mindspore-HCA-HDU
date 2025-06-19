@@ -30,48 +30,47 @@ def generate_ones_grad(shape, dtype):
     return np.ones(shape).astype(dtype)
 
 
-def generate_expect_forward_output(input, mat2):
-    return torch.bmm(input, mat2)
+def generate_expect_forward_output(x):
+    return torch.sum(x)
 
 
-def generate_expect_backward_output(input, mat2, grad):
-    input.requires_grad = True
-    out = torch.bmm(input, mat2)
+def generate_expect_backward_output(x, grad):
+    x.requires_grad = True
+    out = torch.sum(x)
     out.backward(grad)
-    dx = input.grad
+    dx = x.grad
     return dx
 
 
-def bmm_forward_func(input, mat2):
-    return mint.bmm(input, mat2)
+def sum_forward_func(x):
+    return mint.sum(x)
 
 
-def bmm_backward_func(input, mat2):
-    return ops.grad(bmm_forward_func, (0,))(input, mat2)
+def sum_backward_func(x):
+    return ops.grad(sum_forward_func, (0,))(x)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_bmm_ext_std(mode):
+def test_sum_ext_std(mode):
     """
     Feature: standard forward, backward features.
-    Description: test function bmm_ext.
+    Description: test function sum_ext.
     Expectation: expect correct result.
     """
     x = generate_random_input((2, 3, 4), np.float32)
-    mat2 = generate_random_input((2, 4, 5), np.float32)
-    expect = generate_expect_forward_output(torch.Tensor(x), torch.Tensor(mat2))
+    expect = generate_expect_forward_output(torch.Tensor(x))
 
     grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
-    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(mat2), torch.Tensor(grad))
+    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(grad))
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = bmm_forward_func(ms.Tensor(x), ms.Tensor(mat2))
-        output_grad = bmm_backward_func(ms.Tensor(x), ms.Tensor(mat2))
+        output = sum_forward_func(ms.Tensor(x))
+        output_grad = sum_backward_func(ms.Tensor(x))
     else:
-        output = (jit(bmm_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), ms.Tensor(mat2))
-        output_grad = (jit(bmm_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), ms.Tensor(mat2))
+        output = (jit(sum_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output_grad = (jit(sum_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
 
     assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
     assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
