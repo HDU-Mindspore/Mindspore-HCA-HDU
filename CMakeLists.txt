@@ -92,6 +92,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 file(
   GLOB
   OP_PLUGIN_SRCS
+  ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/*.cc
   ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/kernel/*.cc
   ${OP_PLUGIN_SOURCE_DIR}/op_plugin/utils/*.cc)
 

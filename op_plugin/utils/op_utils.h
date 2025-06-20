@@ -17,6 +17,36 @@
 #include <vector>
 #include <torch/extension.h>  // 头文件引用部分
 
+enum TypeId : int {
+  //
+  // Number Types
+  //
+  kNumberTypeBegin = 29,
+  kNumberTypeBool,
+  kNumberTypeInt,
+  kNumberTypeInt8,
+  kNumberTypeInt16,
+  kNumberTypeInt32,
+  kNumberTypeInt64,
+  kNumberTypeUInt,
+  kNumberTypeUInt8,
+  kNumberTypeUInt16,
+  kNumberTypeUInt32,
+  kNumberTypeUInt64,
+  kNumberTypeFloat,
+  kNumberTypeFloat16,
+  kNumberTypeFloat32,
+  kNumberTypeFloat64,
+  kNumberTypeBFloat16,
+  kNumberTypeDouble,
+  kNumberTypeComplex,
+  kNumberTypeComplex64,
+  kNumberTypeComplex128,
+  kNumberTypeInt4,
+  kNumberTypeGLUInt,
+  kNumberTypeEnd
+};
+
 // 将mindspore的数据类型转化为pytorch的标准数据类型序号
 int8_t GetDtype(const std::string &dtypes);
 
@@ -37,6 +67,7 @@ class KernelInputInfo {
  public:
   KernelInputInfo() = default;
   virtual ~KernelInputInfo() = default;
+  virtual bool IsScalarKernelInput(size_t idx) = 0;
 
   template <typename T>
   inline T GetKernelInput(size_t idx) {
@@ -65,6 +96,7 @@ class KernelInputInfo {
   virtual std::vector<float> GetFloatVecInput(size_t idx) = 0;
   virtual std::vector<std::vector<int64_t>> GetInt2DVecInput(size_t idx) = 0;
   virtual std::vector<std::vector<float>> GetFloat2DVecInput(size_t idx) = 0;
+  virtual int GetInputTypeId(size_t idx) = 0;
   std::vector<size_t> workspace_;
 
   CustomKernelData *kernel_data_{nullptr};
@@ -109,3 +141,18 @@ template <>
 inline std::vector<std::vector<float>> KernelInputInfo::GetKernelInput(size_t idx) {
   return GetFloat2DVecInput(idx);
 }
+
+template <>
+inline at::Scalar KernelInputInfo::GetKernelInput(size_t idx) {
+  auto input_dtype = static_cast<TypeId>(GetInputTypeId(idx));
+  switch (input_dtype) {
+    case kNumberTypeBool:
+      return at::Scalar(GetBoolInput(idx));
+    case kNumberTypeInt64:
+      return at::Scalar(GetIntInput(idx));
+    case kNumberTypeFloat32:
+      return at::Scalar(GetFloatInput(idx));
+    default:
+      throw std::runtime_error("Unsupported Data Type");
+  }
+ }
