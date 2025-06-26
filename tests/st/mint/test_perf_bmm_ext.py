@@ -17,7 +17,7 @@ import mindspore as ms
 import mindspore.context as context
 from mindspore import Tensor, ops, mint
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP
+from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
@@ -71,5 +71,5 @@ def test_bmm_ext_perf(mode):
     mat2 = generate_random_input(shape2, np.float32)
     ms_perf = bmm_ext_forward_perf(ms.Tensor(input), ms.Tensor(mat2))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(mat2))
-    assert np.less(ms_perf, expect_perf * 2).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
 

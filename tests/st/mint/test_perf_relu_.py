@@ -17,7 +17,7 @@ import mindspore as ms
 import mindspore.context as context
 from mindspore import Tensor, ops, mint
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP
+from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
@@ -67,9 +67,9 @@ def generate_expect_forward_perf(input):
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
 def test_relu__perf(mode):
-    shape = (10, 10, 10, 10, 10, 10, 10)
+    shape = (10, 10, 10, 10, 10, 10)
     input = generate_random_input(shape, np.float32)
     ms_perf = relu__forward_perf(ms.Tensor(input))
     expect_perf = generate_expect_forward_perf(torch.nn.functional.Tensor(input))
-    assert np.less(ms_perf, expect_perf * 2).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
 
