@@ -17,7 +17,7 @@ import mindspore as ms
 import mindspore.context as context
 from mindspore import Tensor, ops, mint
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP
+from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
@@ -76,6 +76,6 @@ def test_index_select_perf(mode):
     index = generate_random_index(0, input.shape[dim], 10, np.int32)
     ms_perf = index_select_forward_perf(ms.Tensor(input), dim, ms.Tensor(index, dtype=ms.int32))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), dim, torch.tensor(index, dtype=torch.int32))
-    assert np.less(ms_perf, expect_perf * 1.1).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
 
 

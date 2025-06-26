@@ -37,6 +37,8 @@ ENABLE_DEBUG_INFO = False
 DEBUG_STATUS_INFO = ""
 DEBUG_INFOS_LEVEL = 0
 
+BACKGROUND_NOISE = 0.05
+
 
 class ResizeNet(nn.Cell):
     def __init__(self, prim):

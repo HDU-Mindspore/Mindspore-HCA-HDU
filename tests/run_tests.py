@@ -18,9 +18,8 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_atan.py'])
     # FIXME:relu_算子，由于当前框架CPU后端不支持原地更新算子的输入输出共用同一个Tensor，会导致反向精度不正确，因此不执行反向测试用例
     pytest.main(['tests/st/mint/test_relu_.py'])
-    # FIXME:stack算子，由于框架不支持Tuple(Tensor)类型输入，因此不执行stack测试用例
-    # pytest.main(['tests/st/mint/test_stack.py'])
-    ytest.main(['tests/st/mint/test_clone.py'])
+    pytest.main(['tests/st/mint/test_stack.py'])
+    pytest.main(['tests/st/mint/test_clone.py'])
     # FIXME: logical_and算子走内部算子，性能不达标
     #pytest.main(['tests/st/mint/test_logical_and.py'])
     pytest.main(['tests/st/mint/test_logical_not.py'])

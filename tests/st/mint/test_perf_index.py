@@ -18,7 +18,7 @@ import mindspore.context as context
 from mindspore import tensor, ops, mint
 from mindspore.ops.auto_generate.gen_ops_def import index
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP
+from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
@@ -73,5 +73,5 @@ def test_stack_perf(mode):
     
     ms_perf = stack_forward_perf(ms.tensor(input), [ms.tensor(indices1), ms.tensor(indices1)])
     expect_perf = generate_expect_forward_perf(torch.tensor(input), [torch.tensor(indices1), torch.tensor(indices1)])
-    assert np.less(ms_perf, expect_perf * 3).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
 
