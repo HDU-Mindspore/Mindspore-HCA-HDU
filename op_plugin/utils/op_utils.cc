@@ -18,16 +18,17 @@
 
 int8_t GetDtype(const std::string &dtypes) {
   int8_t type = 6;
-  std::unordered_map<std::string, int8_t> m{{"uint8", 0}, {"int8", 1},    {"int16", 2},   {"int32", 3},
-                                            {"int64", 4}, {"float16", 5}, {"float32", 6}, {"float64", 7}};
+  std::unordered_map<std::string, int8_t> m{{"uint8", 0}, {"int8", 1},     {"int16", 2},   {"int32", 3},
+                                            {"int64", 4}, {"float16", 5},  {"float32", 6}, {"float64", 7},
+                                            {"bool", 11}, {"bfloat16", 15}};
   if (m.count(dtypes)) {
     type = m[dtypes];
   }
   return type;
 }
 
-std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes,
-                                                c10::DeviceType device_type) {
+std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndims, int64_t **shapes,
+                                             const char **dtypes, c10::DeviceType device_type) {
   std::vector<at::Tensor> tensors;
   for (int i = 0; i < nparam; i++) {
     std::vector<int64_t> size;

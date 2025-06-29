@@ -19,8 +19,8 @@
 
 #include "utils/op_utils.h"
 
-extern "C" int SumExt(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
-                        void *extra) {
+extern "C" int ReduceSum(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
+                         void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
 
   auto at_input = tensors[0];
