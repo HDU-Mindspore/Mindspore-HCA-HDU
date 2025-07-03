@@ -22,12 +22,12 @@
 extern "C" int MaxDim(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream, void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input = tensors[0];
-  auto at_output1 = tensors[1];
-  auto at_output2 = tensors[2];
+  auto at_output1 = tensors[nparam - 2];
+  auto at_output2 = tensors[nparam - 1];
 
   KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
   int64_t dim = kernel_input_info->GetKernelInput<int64_t>(1);
   bool keepdim = kernel_input_info->GetKernelInput<bool>(2);
-  at::max_out(at_output2, at_output1, at_input, dim, keepdim);
+  at::max_out(at_output1, at_output2, at_input, dim, keepdim);
   return 0;
 }
