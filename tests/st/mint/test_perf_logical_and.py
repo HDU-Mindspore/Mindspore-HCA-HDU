@@ -51,11 +51,11 @@ def generate_expect_forward_perf(input, other):
     op = torch.logical_and
 
     for _ in range(1000):
-        op(input, other)
+        output = op(input, other)
 
     start = time.time()
     for _ in range(1000):
-        op(input, other)
+        output = op(input, other)
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)

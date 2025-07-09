@@ -53,8 +53,7 @@ def test_zeros_like_std(mode):
     """
     x = generate_random_input((2, 3, 4), np.float32)
     expect = generate_expect_forward_output(torch.Tensor(x))
-
-    expect_grad = 0
+    expect_grad = generate_expect_forward_output(torch.Tensor(x))
 
     if mode == "pynative":
         ms.context.set_context(mode=ms.PYNATIVE_MODE)

@@ -23,7 +23,7 @@ extern "C" int ZerosLikeExt(int nparam, void **params, int *ndims, int64_t **sha
                             void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input = tensors[0];
-  auto at_output = tensors[1];
-  torch::zeros_like_out(at_output, at_input);
+  auto at_output = tensors[nparam - 1];
+  at::zeros_like_out(at_output, at_input);
   return 0;
 }

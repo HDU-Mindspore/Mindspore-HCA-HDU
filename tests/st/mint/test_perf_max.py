@@ -52,11 +52,11 @@ def generate_expect_forward_perf(input):
     print("================shape: ", input.shape)
 
     for _ in range(1000):
-        op(input)
+        output = op(input)
 
     start = time.time()
     for _ in range(1000):
-        op(input)
+        output = op(input)
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)

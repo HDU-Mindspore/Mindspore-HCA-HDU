@@ -31,8 +31,20 @@ def generate_expect_forward_output(x, dim, index):
     return torch.index_select(x, dim, index)
 
 
+def generate_expect_backward_output(x, dim, index, grad):
+    x.requires_grad = True
+    out = torch.index_select(x, dim, index)
+    out.backward(grad)
+    dx = x.grad
+    return dx
+
+
 def index_select_forward_func(x, dim, index):
     return mint.index_select(x, dim, index)
+
+
+def index_select_backward_func(x, dim, index):
+    return ops.grad(cumsum_forward_func, (0,))(x, dim, index)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
@@ -47,11 +59,14 @@ def test_index_std(mode):
     dim = 1
 
     expect = generate_expect_forward_output(torch.Tensor(x), dim, torch.tensor([0, 2], dtype=torch.int32))
+    # expect_grad = generate_expect_backward_output(torch.Tensor(x), dim, torch.tensor([0, 2], dtype=torch.int32), torch.Tensor(grad))
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
         output = index_select_forward_func(ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
+        # output_grad = index_select_backward_func(ms.Tensor(x))
     else:
         output = (jit(index_select_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
+        # output_grad = (jit(index_select_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
 
     assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)

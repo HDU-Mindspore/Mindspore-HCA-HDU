@@ -53,11 +53,11 @@ def generate_expect_forward_perf(input, indices):
     print("================shape: ", input.shape)
 
     for _ in range(1000):
-        input[indices]
+        output = input[indices]
 
     start = time.time()
     for _ in range(1000):
-        input[indices]
+        output = input[indices]
     end = time.time()
 
     print(f"Torch index e2e time: ", end-start)
