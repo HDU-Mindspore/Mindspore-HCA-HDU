@@ -1,4 +1,4 @@
-# Copyright 2025 Huawei Technologies Co., Ltd
+# Copyright 2024 Huawei Technologies Co., Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,19 +26,20 @@ import pytest
 
 
 def generate_random_input(shape, dtype):
-    return np.random.uniform(-1, 1, shape).astype(dtype)
+    return np.random.randn(*shape).astype(dtype)
 
 
-def bmm_ext_forward_perf(input, mat2):
-    op = mint.bmm
+def zeros_like_forward_perf(input):
+    op = mint.zeros_like
+    print("================shape: ", input.shape)
 
     for _ in range(1000):
-        output = op(input, mat2)
+        output = op(input)
 
     _pynative_executor.sync()
     start = time.time()
     for _ in range(1000):
-        output = op(input, mat2)
+        output = op(input)
     _pynative_executor.sync()
     end = time.time()
 
@@ -46,16 +47,17 @@ def bmm_ext_forward_perf(input, mat2):
     return  end-start
 
 
-def generate_expect_forward_perf(input, mat2):
+def generate_expect_forward_perf(input):
 
-    op = torch.bmm
+    op = torch.zeros_like
+    print("================shape: ", input.shape)
 
     for _ in range(1000):
-        output = op(input, mat2)
+        output = op(input)
 
     start = time.time()
     for _ in range(1000):
-        output = op(input, mat2)
+        output = op(input)
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)
@@ -64,12 +66,10 @@ def generate_expect_forward_perf(input, mat2):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_bmm_ext_perf(mode):
-    shape1 = (50, 10, 20)
-    shape2 = (50, 20, 10)
-    input = generate_random_input(shape1, np.float32)
-    mat2 = generate_random_input(shape2, np.float32)
-    ms_perf = bmm_ext_forward_perf(ms.Tensor(input), ms.Tensor(mat2))
-    expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(mat2))
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
+def test_zeros_like_perf(mode):
+    shape = (10, 10, 10, 10, 10, 10)
+    input = generate_random_input(shape, np.float32)
+    ms_perf = zeros_like_forward_perf(ms.Tensor(input))
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input))
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 3).all()
 

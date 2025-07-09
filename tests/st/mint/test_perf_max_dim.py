@@ -51,11 +51,11 @@ def generate_expect_forward_perf(input, dim, keepdim):
     op = torch.max
 
     for _ in range(1000):
-        op(input, dim, keepdim)
+        output = op(input, dim, keepdim)
 
     start = time.time()
     for _ in range(1000):
-        op(input, dim, keepdim)
+        output = op(input, dim, keepdim)
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)

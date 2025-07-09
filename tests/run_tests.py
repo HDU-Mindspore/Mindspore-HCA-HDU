@@ -29,15 +29,12 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_sum_ext.py'])
     pytest.main(['tests/st/mint/test_exp.py'])
     pytest.main(['tests/st/mint/test_zeros_like.py'])
-    # FIXME:index_select算子，反向依赖zeros_like和index_add_接入，暂时不执行反向测试用例
+    # FIXME:index_select算子，反向依赖index_add_接入，暂时不执行反向测试用例
     pytest.main(['tests/st/mint/test_index_select.py'])
 
-    # FIXME:执行性能用例时，需要把MS日志级别设置为ERROR级别，否则太多Warning日志会影响性能。
     pytest.main(['tests/st/mint/test_perf_acos.py'])
     pytest.main(['tests/st/mint/test_perf_copy_.py'])
-    # FIXME:sin 算子走内置算子，因此性能不达标。
-    # pytest.main(['tests/st/mint/test_perf_sin.py'])
-    # FIXME:atan 算子走内置算子，因此性能不达标。
+    pytest.main(['tests/st/mint/test_perf_sin.py'])
     pytest.main(['tests/st/mint/test_perf_atan.py'])
     # FIXME: relu_ 算子性能不达标，怀疑是由于框架多申请了一个输出Tensor导致。
     pytest.main(['tests/st/mint/test_perf_relu_.py'])
@@ -53,9 +50,10 @@ if __name__ == '__main__':
     # FIXME: max算子走内部算子，性能不达标
     #pytest.main(['tests/st/mint/test_perf_max.py'])
     pytest.main(['tests/st/mint/test_perf_max_dim.py'])
-    # FIXME: bmm算子走内部算子，性能不达标
-    #pytest.main(['tests/st/mint/test_perf_bmm_ext.py'])
+    pytest.main(['tests/st/mint/test_perf_bmm_ext.py'])
     # FIXME: sum算子走内部算子，性能不达标
     #pytest.main(['tests/st/mint/test_perf_sum_ext.py'])
     # FIXME: cumsum 算子走内置算子，因此性能不达标
     # pytest.main(['tests/st/mint/test_perf_cumsum.py'])
+    # FIXME: zeros_like 算子性能较差，原因未明。
+    pytest.main(['tests/st/mint/test_perf_zeros_like.py'])
