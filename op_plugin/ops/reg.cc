@@ -17,12 +17,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-
-const std::vector<std::string> register_op_name = {
-  "AcosExt",      "AcoshExt",      "AsinExt", "AsinhExt",    "AtanExt", "BmmExt",      "Clone",       "Cos",
-  "CumsumExt",    "Div",           "Exp",     "IndexSelect", "Index",   "InplaceCopy", "InplaceReLU", "LogicalAnd",
-  "LogicalNot",   "MaxDim",        "Max",     "Maximum",     "Sin",     "StackExt",    "SumExt",   "UnstackExtView",
-  "ZerosLikeExt", "BatchMatMulExt", "Divs",   "Zeros",       "Concat",  "InplaceScatterSrc"};
+#include "generated_reg.h"
 
 extern "C" bool IsKernelRegistered(const char *op_name) {
   return std::find(register_op_name.begin(), register_op_name.end(), op_name) != register_op_name.end();

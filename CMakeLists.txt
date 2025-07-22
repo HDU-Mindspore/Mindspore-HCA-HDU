@@ -118,6 +118,18 @@ message("PYTHON_LIBRARIES = ${PYTHON_LIBRARIES}")
 include_directories(${PYTHON_INCLUDE_DIRS})
 
 
+# Auto-generate operator registry
+set(GENERATED_REG_FILE ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/generated_reg.h)
+add_custom_target(generate_op_registry ALL
+  COMMAND ${CMAKE_COMMAND}
+    -DKERNEL_DIR=${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/kernel
+    -DOUTPUT_FILE=${GENERATED_REG_FILE}
+    -P ${OP_PLUGIN_SOURCE_DIR}/cmake/generate_op_registry.cmake
+  DEPENDS ${OP_PLUGIN_SOURCE_DIR}/cmake/generate_op_registry.cmake
+  COMMENT "Generating operator registry from kernel files"
+  VERBATIM
+)
+
 
 # Source file lists
 file(
@@ -128,6 +140,9 @@ file(
     ${OP_PLUGIN_SOURCE_DIR}/op_plugin/utils/*.cc)
 
 add_library(ms_op_plugin SHARED ${OP_PLUGIN_SRCS})
+
+# Ensure the library depends on the generated registry
+add_dependencies(ms_op_plugin generate_op_registry)
 
 target_link_libraries(ms_op_plugin PUBLIC ${TORCH_CPU} ${C10})
 
