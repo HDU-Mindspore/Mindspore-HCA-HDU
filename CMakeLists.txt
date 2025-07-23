@@ -34,7 +34,9 @@ elseif(UNIX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -Wall -fPIC -fstack-protector-all -Wno-uninitialized -Wno-parentheses")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-z,relro,-z,now,-z,noexecstack")
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -pipe -Wall -Wno-unknown-pragmas -Wno-unused-result -Wsign-compare -fPIC -fstack-protector-all -Wno-uninitialized -Wno-parentheses -D_GLIBCXX_USE_CXX11_ABI=0 -DTORCH_API_INCLUDE_EXTENSION_H")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -pipe -Wall -Wno-unknown-pragmas \
+    -Wno-unused-result -Wsign-compare -fPIC -fstack-protector-all -Wno-uninitialized \
+    -Wno-parentheses -D_GLIBCXX_USE_CXX11_ABI=0 -DTORCH_API_INCLUDE_EXTENSION_H")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-z,relro,-z,now,-z,noexecstack")
 endif()
 
@@ -64,8 +66,7 @@ get_filename_component(OP_PLUGIN_SOURCE_DIR "${OP_PLUGIN_SOURCE_DIR}" ABSOLUTE)
 message("OP_PLUGIN_SOURCE_DIR = ${OP_PLUGIN_SOURCE_DIR}")
 
 
-# libtorch 
-
+# libtorch
 set(TORCH_LIBS ${OP_PLUGIN_SOURCE_DIR}/third_party/libtorch)
 
 include_directories(${OP_PLUGIN_SOURCE_DIR}/op_plugin)
