@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+""" max op test case """
 # pylint: disable=unused-variable
 import pytest
 import numpy as np
 import mindspore as ms
 from mindspore import ops, mint, jit
-from tests.utils.test_op_utils import TEST_OP
 from tests.utils.mark_utils import arg_mark
+from tests.utils.tools import allclose_nparray
 import torch
 
 
@@ -74,7 +75,5 @@ def test_max_dim_std(mode):
         output = (jit(max_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim, keepdim)
         output_grad = (jit(max_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim, keepdim)
 
-    assert np.allclose(output[0].asnumpy(), expect.values.detach().numpy(), equal_nan=True)
-    assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
-
-
+    allclose_nparray(expect.values.detach().numpy(), output[0].asnumpy(), equal_nan=True)
+    allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

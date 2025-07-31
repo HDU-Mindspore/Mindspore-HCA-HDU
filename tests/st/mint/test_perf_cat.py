@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-""" relu_ op performance test case """
+""" cat op performance test case """
 # pylint: disable=unused-variable
 # pylint: disable=W0622,W0613
 import time
@@ -30,18 +30,18 @@ def generate_random_input(shape, dtype):
     return np.random.randn(*shape).astype(dtype)
 
 
-def relu__forward_perf(input):
+def stack_forward_perf(input):
     """get ms op forward performance"""
-    op = mint.nn.functional.relu_
+    op = mint.cat
     print("================shape: ", input.shape)
 
     for _ in range(1000):
-        output = op(input)
+        output = op((input, input))
 
     _pynative_executor.sync()
     start = time.time()
     for _ in range(1000):
-        output = op(input)
+        output = op((input, input))
     _pynative_executor.sync()
     end = time.time()
 
@@ -51,15 +51,15 @@ def relu__forward_perf(input):
 
 def generate_expect_forward_perf(input):
     """get torch op forward performance"""
-    op = torch.nn.functional.relu_
+    op = torch.cat
     print("================shape: ", input.shape)
 
     for _ in range(1000):
-        output = op(input)
+        output = op((input, input))
 
     start = time.time()
     for _ in range(1000):
-        output = op(input)
+        output = op((input, input))
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)
@@ -68,9 +68,9 @@ def generate_expect_forward_perf(input):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_relu__perf(mode):
+def test_stack_perf(mode):
     shape = (10, 10, 10, 10, 10, 10)
     input = generate_random_input(shape, np.float32)
-    ms_perf = relu__forward_perf(ms.Tensor(input))
-    expect_perf = generate_expect_forward_perf(torch.nn.functional.Tensor(input))
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
+    ms_perf = stack_forward_perf(ms.Tensor(input))
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input))
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.5).all()

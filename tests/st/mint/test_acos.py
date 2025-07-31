@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-# pylint: disable=unused-variable
+""" acos op test case """
 import pytest
 import numpy as np
 import mindspore as ms
 from mindspore import ops, mint, jit
-from tests.utils.test_op_utils import TEST_OP
 from tests.utils.mark_utils import arg_mark
+from tests.utils.tools import allclose_nparray
 import torch
 
 
@@ -72,7 +72,5 @@ def test_acos_std(mode):
         output = (jit(acos_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
         output_grad = (jit(acos_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
 
-    assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
-    assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
-
-
+    allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
+    allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

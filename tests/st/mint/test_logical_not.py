@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+""" logical_not op test case """
 # pylint: disable=unused-variable
 import pytest
 import numpy as np
 import mindspore as ms
-from mindspore import ops, mint, jit
-from tests.utils.test_op_utils import TEST_OP
+from mindspore import mint, jit
 from tests.utils.mark_utils import arg_mark
+from tests.utils.tools import allclose_nparray
 import torch
 
 
@@ -52,6 +53,4 @@ def test_logical_not_std(mode):
     else:
         output = (jit(logical_not_forward_func, backend="ms_backend", jit_level="O0"))(ms_x)
 
-    assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
-
-
+    allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)

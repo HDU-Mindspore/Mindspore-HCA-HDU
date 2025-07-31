@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import mindspore
+""" index_select op performance test case """
+# pylint: disable=unused-variable
+# pylint: disable=W0622,W0613
+import time
 import mindspore as ms
-import mindspore.context as context
-from mindspore import Tensor, ops, mint
+from mindspore import mint
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
+from tests.utils.test_op_utils import BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
-import time
 import pytest
 
 
@@ -34,6 +35,7 @@ def generate_random_index(low, high, length, dtype):
 
 
 def index_select_forward_perf(input, dim, index):
+    """get ms op forward performance"""
     op = mint.index_select
     print("================shape: ", input.shape)
 
@@ -52,6 +54,7 @@ def index_select_forward_perf(input, dim, index):
 
 
 def generate_expect_forward_perf(input, dim, index):
+    """get torch op forward performance"""
     op = torch.index_select
     print("================shape: ", input.shape)
 
@@ -77,5 +80,3 @@ def test_index_select_perf(mode):
     ms_perf = index_select_forward_perf(ms.Tensor(input), dim, ms.Tensor(index, dtype=ms.int32))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), dim, torch.tensor(index, dtype=torch.int32))
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
-
-

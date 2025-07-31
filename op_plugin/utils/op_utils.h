@@ -13,15 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <string.h>
-#include <vector>
-#include <torch/extension.h>  // 头文件引用部分
 
+
+#include <torch/extension.h>
+
+#include <string>
+#include <vector>
+
+
+/// \brief TypeId defines data type identifiers.
 enum TypeId : int {
+  kTypeUnknown = 0,
+  //
+  // Meta types.
+  //
+  kMetaTypeBegin = kTypeUnknown,
+  kMetaTypeType,
+  kMetaTypeAny,
+  kMetaTypeObject,
+  kMetaTypeTypeType,
+  kMetaTypeProblem,
+  kMetaTypeExternal,
+  kMetaTypeNone,
+  kMetaTypeNull,
+  kMetaTypeEllipsis,
+  kMetaTypeEnd,
+  //
+  // Object types
+  //
+  kObjectTypeBegin = kMetaTypeEnd,
+  kObjectTypeNumber,
+  kObjectTypeString,
+  kObjectTypeList,
+  kObjectTypeTuple,
+  kObjectTypeSlice,
+  kObjectTypeKeyword,
+  kObjectTypeTensorType,
+  kObjectTypeRowTensorType,
+  kObjectTypeCOOTensorType,
+  kObjectTypeUndeterminedType,
+  kObjectTypeClass,
+  kObjectTypeDictionary,
+  kObjectTypeFunction,
+  kObjectTypeJTagged,
+  kObjectTypeSymbolicKeyType,
+  kObjectTypeEnvType,
+  kObjectTypeRefKey,
+  kObjectTypeRef,
+  kObjectTypeEnd,
   //
   // Number Types
   //
-  kNumberTypeBegin = 29,
+  kNumberTypeBegin = kObjectTypeEnd,
   kNumberTypeBool,
   kNumberTypeInt,
   kNumberTypeInt8,
@@ -44,15 +87,33 @@ enum TypeId : int {
   kNumberTypeComplex128,
   kNumberTypeInt4,
   kNumberTypeGLUInt,
-  kNumberTypeEnd
+  kNumberTypeEnd,
+  //
+  // Monad Types
+  //
+  kMonadTypeBegin = kNumberTypeEnd,
+  kObjectTypeMonad,
+  kObjectTypeUMonad,
+  kObjectTypeIOMonad,
+  kMonadTypeEnd,
+  //
+  // Sparse Types
+  //
+  kSparseTypeBegin = kMonadTypeEnd,
+  kObjectTypeCSRTensorType,
+  kObjectTypeSparseTensorType,
+  kObjectTypeMapTensorType,
+  kSparseTypeEnd,
+  // New types should placed at the end of enum,
+  // in order to keep fit with the type of existing model on the lite side.
 };
 
 // 将mindspore的数据类型转化为pytorch的标准数据类型序号
 int8_t GetDtype(const std::string &dtypes);
 
 // 将 mindspore kernel 的 inputs/outputs 转换为 pytorch 的 tensor
-std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes,
-                                                c10::DeviceType device_type = c10::kCPU);
+std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndims, int64_t **shapes,
+                                                const char **dtypes, c10::DeviceType device_type = c10::kCPU);
 
 // 将入参没有输出的pytorch 算子的计算结果拷贝到kernel的输出内存
 void output_memcpy(void *output, const torch::Tensor &t);
@@ -153,6 +214,54 @@ inline at::Scalar KernelInputInfo::GetKernelInput(size_t idx) {
     case kNumberTypeFloat32:
       return at::Scalar(GetFloatInput(idx));
     default:
-      throw std::runtime_error("Unsupported Data Type");
+      throw std::runtime_error("Convert MS Scalar to at::Scalar error, unsupported Scalar type:" +
+        std::to_string(input_dtype) + ".");
   }
- }
+}
+
+template <>
+inline c10::optional<at::ScalarType> KernelInputInfo::GetKernelInput(size_t idx) {
+  auto input_dtype = static_cast<TypeId>(GetInputTypeId(idx));
+  if (input_dtype == kMetaTypeNone) {
+    return c10::nullopt;
+  }
+
+  auto dtype_value = GetKernelInput<int64_t>(idx);
+  switch (dtype_value) {
+    case kNumberTypeBool:
+      return at::ScalarType::Bool;
+    case kNumberTypeInt:
+      return at::ScalarType::Int;
+    case kNumberTypeInt8:
+      return at::ScalarType::Char;
+    case kNumberTypeInt16:
+      return at::ScalarType::Short;
+    case kNumberTypeInt32:
+      return at::ScalarType::Int;
+    case kNumberTypeInt64:
+      return at::ScalarType::Long;
+    case kNumberTypeUInt8:
+      return at::ScalarType::Byte;
+    case kNumberTypeFloat:
+      return at::ScalarType::Float;
+    case kNumberTypeFloat16:
+      return at::ScalarType::Half;
+    case kNumberTypeFloat32:
+      return at::ScalarType::Float;
+    case kNumberTypeFloat64:
+      return at::ScalarType::Double;
+    case kNumberTypeBFloat16:
+      return at::ScalarType::BFloat16;
+    case kNumberTypeDouble:
+      return at::ScalarType::Double;
+    case kNumberTypeComplex:
+      return at::ScalarType::ComplexFloat;
+    case kNumberTypeComplex64:
+      return at::ScalarType::ComplexFloat;
+    case kNumberTypeComplex128:
+      return at::ScalarType::ComplexDouble;
+    default:
+      throw std::runtime_error("Convert MS dtype to at::ScalarType error, unsupported Dtype:" +
+        std::to_string(input_dtype) + ".");
+  }
+}

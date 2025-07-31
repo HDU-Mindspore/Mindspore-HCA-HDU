@@ -30,10 +30,8 @@ extern "C" int ReduceSum(int nparam, void **params, int *ndims, int64_t **shapes
   auto dim = kernel_input_info->GetKernelInput<std::vector<int64_t>>(1);
   c10::optional<c10::IntArrayRef> pt_dim(dim);
   bool keepdim = kernel_input_info->GetKernelInput<bool>(2);
+  auto at_dtype = kernel_input_info->GetKernelInput<c10::optional<at::ScalarType>>(3);
 
-  int8_t type = GetDtype(dtypes[2]);
-  auto dtype = static_cast<c10::ScalarType>(type);
-
-  at::sum_out(at_output, at_input, pt_dim, keepdim, dtype);
+  at::sum_out(at_output, at_input, pt_dim, keepdim, at_dtype);
   return 0;
 }

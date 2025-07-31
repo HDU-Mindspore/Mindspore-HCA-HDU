@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import mindspore
+""" index op performance test case """
+# pylint: disable=unused-variable
+# pylint: disable=W0622,W0613
+import time
 import mindspore as ms
-import mindspore.context as context
-from mindspore import tensor, ops, mint
 from mindspore.ops.auto_generate.gen_ops_def import index
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
+from tests.utils.test_op_utils import BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
-import time
 import pytest
 
 
@@ -31,6 +31,7 @@ def generate_random_input(shape, dtype):
 
 
 def stack_forward_perf(input, indices):
+    """get ms op forward performance"""
     op = index
     print("================shape: ", input.shape)
 
@@ -49,7 +50,7 @@ def stack_forward_perf(input, indices):
 
 
 def generate_expect_forward_perf(input, indices):
-
+    """get torch op forward performance"""
     print("================shape: ", input.shape)
 
     for _ in range(1000):
@@ -70,8 +71,7 @@ def test_stack_perf(mode):
     shape = (10, 10, 10, 10, 10, 10, 5)
     input = generate_random_input(shape, np.float32)
     indices1 = np.random.randint(0, 10, (10, 10), dtype=np.int32)
-    
+
     ms_perf = stack_forward_perf(ms.tensor(input), [ms.tensor(indices1), ms.tensor(indices1)])
     expect_perf = generate_expect_forward_perf(torch.tensor(input), [torch.tensor(indices1), torch.tensor(indices1)])
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
-

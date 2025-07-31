@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-""" clone op test case """
+""" cat op test case """
 # pylint: disable=unused-variable
 import pytest
 import numpy as np
@@ -32,31 +32,31 @@ def generate_ones_grad(shape, dtype):
 
 
 def generate_expect_forward_output(x):
-    return torch.clone(x)
+    return torch.cat((x, x, x))
 
 
 def generate_expect_backward_output(x, grad):
     x.requires_grad = True
-    out = torch.clone(x)
+    out = torch.cat((x, x, x))
     out.backward(grad)
     dx = x.grad
     return dx
 
 
-def clone_forward_func(x):
-    return mint.clone(x)
+def stack_forward_func(x):
+    return mint.cat((x, x, x))
 
 
-def clone_backward_func(x):
-    return ops.grad(clone_forward_func, (0,))(x)
+def stack_backward_func(x):
+    return ops.grad(stack_forward_func, (0,))(x)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_clone_std(mode):
+def test_stack_std(mode):
     """
     Feature: standard forward, backward features.
-    Description: test function clone.
+    Description: test function cat.
     Expectation: expect correct result.
     """
     x = generate_random_input((2, 3, 4), np.float32)
@@ -67,11 +67,11 @@ def test_clone_std(mode):
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = clone_forward_func(ms.Tensor(x))
-        output_grad = clone_backward_func(ms.Tensor(x))
+        output = stack_forward_func(ms.Tensor(x))
+        output_grad = stack_backward_func(ms.Tensor(x))
     else:
-        output = (jit(clone_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
-        output_grad = (jit(clone_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output = (jit(stack_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output_grad = (jit(stack_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
 
     allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
     allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

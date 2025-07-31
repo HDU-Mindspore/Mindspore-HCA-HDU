@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+""" index_select op test case """
 import pytest
 import numpy as np
 import mindspore as ms
-from mindspore.common import mutable
-from mindspore import Tensor, mint
-from tests.utils import test_utils
-from tests.utils.test_op_utils import TEST_OP
+from mindspore import mint
 from tests.utils.mark_utils import arg_mark
+from tests.utils.tools import allclose_nparray
 import torch
 
 
@@ -59,14 +58,17 @@ def test_index_std(mode):
     dim = 1
 
     expect = generate_expect_forward_output(torch.Tensor(x), dim, torch.tensor([0, 2], dtype=torch.int32))
-    # expect_grad = generate_expect_backward_output(torch.Tensor(x), dim, torch.tensor([0, 2], dtype=torch.int32), torch.Tensor(grad))
+    # expect_grad = generate_expect_backward_output(torch.Tensor(x), dim, torch.tensor([0, 2],
+    #                                               dtype=torch.int32), torch.Tensor(grad))
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
         output = index_select_forward_func(ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
         # output_grad = index_select_backward_func(ms.Tensor(x))
     else:
-        output = (jit(index_select_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
-        # output_grad = (jit(index_select_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
+        output = jit(index_select_forward_func, backend="ms_backend", jit_level="O0")(
+            ms.Tensor(x), dim, ms.Tensor([0, 2], ms.int32))
+        # output_grad = (jit(index_select_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x),
+        #                dim, ms.Tensor([0, 2], ms.int32))
 
-    assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
+    allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)

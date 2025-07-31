@@ -1,4 +1,4 @@
-# Copyright 2024 Huawei Technologies Co., Ltd
+# Copyright 2025 Huawei Technologies Co., Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-""" relu_ op performance test case """
+""" div op performance test case """
 # pylint: disable=unused-variable
 # pylint: disable=W0622,W0613
 import time
+import random
 import mindspore as ms
 from mindspore import mint
 from mindspore.common.api import _pynative_executor
@@ -26,22 +27,25 @@ import numpy as np
 import pytest
 
 
-def generate_random_input(shape, dtype):
-    return np.random.randn(*shape).astype(dtype)
+def generate_random_input(shape):
+    return np.random.uniform(-1, 1, shape)
 
 
-def relu__forward_perf(input):
+def generate_scalar_input():
+    return random.random()
+
+
+def div_forward_perf(input, other):
     """get ms op forward performance"""
-    op = mint.nn.functional.relu_
-    print("================shape: ", input.shape)
+    op = mint.div
 
     for _ in range(1000):
-        output = op(input)
+        output = op(input, other)
 
     _pynative_executor.sync()
     start = time.time()
     for _ in range(1000):
-        output = op(input)
+        output = op(input, other)
     _pynative_executor.sync()
     end = time.time()
 
@@ -49,17 +53,16 @@ def relu__forward_perf(input):
     return  end-start
 
 
-def generate_expect_forward_perf(input):
+def generate_expect_forward_perf(input, other):
     """get torch op forward performance"""
-    op = torch.nn.functional.relu_
-    print("================shape: ", input.shape)
+    op = torch.div
 
     for _ in range(1000):
-        output = op(input)
+        output = op(input, other)
 
     start = time.time()
     for _ in range(1000):
-        output = op(input)
+        output = op(input, other)
     end = time.time()
 
     print(f"Torch {op} e2e time: ", end-start)
@@ -68,9 +71,31 @@ def generate_expect_forward_perf(input):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_relu__perf(mode):
+def test_div_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test div op performance.
+    Expectation: expect performance OK.
+    """
     shape = (10, 10, 10, 10, 10, 10)
-    input = generate_random_input(shape, np.float32)
-    ms_perf = relu__forward_perf(ms.Tensor(input))
-    expect_perf = generate_expect_forward_perf(torch.nn.functional.Tensor(input))
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
+    input = generate_random_input(shape)
+    other = generate_random_input(shape)
+    ms_perf = div_forward_perf(ms.Tensor(input), ms.Tensor(other))
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other))
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
+
+
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
+@pytest.mark.parametrize('mode', ['pynative'])
+def test_divs_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test div op performance.
+    Expectation: expect performance OK.
+    """
+    shape = (10, 10, 10, 10, 10, 10)
+    input = generate_random_input(shape)
+    other = generate_scalar_input()
+    ms_perf = div_forward_perf(ms.Tensor(input), other)
+    expect_perf = generate_expect_forward_perf(torch.Tensor(input), other)
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()

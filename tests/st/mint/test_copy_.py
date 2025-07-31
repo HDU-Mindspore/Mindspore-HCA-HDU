@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+""" copy_ op test case """
 # pylint: disable=unused-variable
 import pytest
 import numpy as np
 import mindspore as ms
-from mindspore import ops, mint, jit
-from tests.utils.test_op_utils import TEST_OP
+from mindspore import ops, jit
 from tests.utils.mark_utils import arg_mark
+from tests.utils.tools import allclose_nparray
 import torch
 
 
@@ -52,7 +53,7 @@ def copy__forward_func(dst, src):
 
 
 def copy__backward_func(dst, src):
-    return ops.grad(copy__forward_func, (1, ))(dst, src)
+    return ops.grad(copy__forward_func, (1,))(dst, src)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
@@ -78,7 +79,5 @@ def test_copy__std(mode):
         output = (jit(copy__forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(dst), ms.Tensor(src))
         output_grad = (jit(copy__backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(dst), ms.Tensor(src))
 
-    assert np.allclose(output.asnumpy(), expect.detach().numpy(), equal_nan=True)
-    assert np.allclose(output_grad.asnumpy(), expect_grad.detach().numpy(), equal_nan=True)
-
-
+    allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
+    allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

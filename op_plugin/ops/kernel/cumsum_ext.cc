@@ -28,10 +28,8 @@ extern "C" int CumsumExt(int nparam, void **params, int *ndims, int64_t **shapes
 
   KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra_void);
   int64_t dim = kernel_input_info->GetKernelInput<int64_t>(1);
+  auto at_dtype = kernel_input_info->GetKernelInput<c10::optional<at::ScalarType>>(2);
 
-  int8_t type = GetDtype(dtypes[2]);
-  auto dtype = static_cast<c10::ScalarType>(type);
-
-  at::cumsum_out(at_output, at_input, dim, dtype);
+  at::cumsum_out(at_output, at_input, dim, at_dtype);
   return 0;
 }
