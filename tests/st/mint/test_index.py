@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+""" index op test case """
 import pytest
 import numpy as np
 import mindspore as ms
-from mindspore.common import mutable
 from mindspore.ops.auto_generate.gen_ops_def import index
 from tests.utils import test_utils
-from tests.utils.test_op_utils import TEST_OP
 from tests.utils.mark_utils import arg_mark
+from tests.utils.tools import allclose_nparray
 import torch
 
 
@@ -71,6 +71,5 @@ def test_index_std(mode):
     expect_1 = torch.tensor(x)[pt_indices1, pt_indices2]
     expect_2 = torch.tensor(x)[pt_indices3, pt_indices3, pt_indices2, pt_indices2, pt_indices1]
 
-    np.testing.assert_allclose(output_1.asnumpy(), expect_1.numpy())
-    np.testing.assert_allclose(output_2.asnumpy(), expect_2.numpy())
-
+    allclose_nparray(expect_1.numpy(), output_1.asnumpy())
+    allclose_nparray(expect_2.numpy(), output_2.asnumpy())

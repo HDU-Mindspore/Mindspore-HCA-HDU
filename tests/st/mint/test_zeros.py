@@ -12,31 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-""" zeros_like op test case """
+""" zeros op test case """
 # pylint: disable=unused-variable
 import pytest
-import numpy as np
 import mindspore as ms
-from mindspore import ops, mint, jit
+from mindspore import mint, jit
 from tests.utils.mark_utils import arg_mark
 from tests.utils.tools import allclose_nparray
 import torch
 
 
-def generate_random_input(shape, dtype):
-    return np.random.uniform(-1, 1, shape).astype(dtype)
+def generate_random_input(size):
+    return size
 
 
-def generate_expect_forward_output(x):
-    return torch.zeros_like(x)
+def generate_expect_forward_output(size, dtype):
+    return torch.zeros(size, dtype=dtype)
 
 
-def zeros_like_forward_func(x):
-    return mint.zeros_like(x)
-
-
-def zeros_like_backward_func(x):
-    return ops.grad(zeros_like_forward_func, (0,))(x)
+def zeros_forward_func(size, dtype):
+    return mint.zeros(size, dtype=dtype)
 
 
 @arg_mark(
@@ -46,27 +41,19 @@ def zeros_like_backward_func(x):
     essential_mark="essential",
 )
 @pytest.mark.parametrize("mode", ["pynative"])
-def test_zeros_like_std(mode):
+def test_zeros_std(mode):
     """
     Feature: standard forward, backward features.
-    Description: test function zeros_like.
+    Description: test function zeros.
     Expectation: expect correct result.
     """
-    x = generate_random_input((2, 3, 4), np.float32)
-    expect = generate_expect_forward_output(torch.Tensor(x))
-    expect_grad = generate_expect_forward_output(torch.Tensor(x))
+    size = (2, 3, 4)
+    expect = generate_expect_forward_output(size, torch.float16)
 
     if mode == "pynative":
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = zeros_like_forward_func(ms.Tensor(x))
-        output_grad = zeros_like_backward_func(ms.Tensor(x))
+        output = zeros_forward_func(size, ms.float16)
     else:
-        output = (jit(zeros_like_forward_func, backend="ms_backend", jit_level="O0"))(
-            ms.Tensor(x)
-        )
-        output_grad = (
-            jit(zeros_like_backward_func, backend="ms_backend", jit_level="O0")
-        )(ms.Tensor(x))
+        output = (jit(zeros_forward_func, backend="ms_backend", jit_level="O0"))(size, ms.float16)
 
     allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
-    allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

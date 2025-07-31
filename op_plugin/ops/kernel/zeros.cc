@@ -19,19 +19,16 @@
 
 #include "utils/op_utils.h"
 
-extern "C" int Div(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
-                   void *extra) {
+extern "C" int Zeros(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
+                         void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
-  auto at_input1 = tensors[0];
-  auto at_input2 = tensors[1];
-  auto at_output = tensors[2];
+
+  auto at_output = tensors[nparam - 1];
 
   KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
-  if (kernel_input_info->IsScalarKernelInput(1)) {
-    auto at_scalar_input = kernel_input_info->GetKernelInput<at::Scalar>(1);
-    at::div_out(at_output, at_input1, at_scalar_input);
-  } else {
-    at::div_out(at_output, at_input1, at_input2);
-  }
+  auto size = kernel_input_info->GetKernelInput<std::vector<int64_t>>(0);
+  c10::IntArrayRef pt_size(size);
+
+  at::zeros_out(at_output, pt_size);
   return 0;
 }

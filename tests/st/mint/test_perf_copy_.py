@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import mindspore
+""" copy_ op performance test case """
+# pylint: disable=unused-variable
+# pylint: disable=W0622,W0613
+import time
 import mindspore as ms
-import mindspore.context as context
-from mindspore import Tensor, ops, mint
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
+from tests.utils.test_op_utils import BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
-import time
 import pytest
 
 
@@ -30,6 +30,7 @@ def generate_random_input(shape, dtype):
 
 
 def copy__forward_perf(dst, src):
+    """get ms op forward performance"""
     print("================shape: ", dst.shape)
 
     for _ in range(1000):
@@ -47,6 +48,7 @@ def copy__forward_perf(dst, src):
 
 
 def generate_expect_forward_perf(dst, src):
+    """get torch op forward performance"""
     print("================shape: ", dst.shape)
 
     for _ in range(1000):
@@ -70,4 +72,3 @@ def test_copy__perf(mode):
     ms_perf = copy__forward_perf(ms.Tensor(dst), ms.Tensor(src))
     expect_perf = generate_expect_forward_perf(torch.Tensor(dst), torch.Tensor(src))
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
-

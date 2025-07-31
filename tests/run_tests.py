@@ -1,10 +1,24 @@
+# Copyright 2024 Huawei Technologies Co., Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ============================================================================
+""" run all test case """
 import mindspore
-import mindspore as ms
 import mindspore.context as context
 import pytest
 
 context.set_context(mode=context.PYNATIVE_MODE)
-ms.set_device('CPU')
+mindspore.set_device('CPU')
 
 if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_asin.py'])
@@ -19,18 +33,23 @@ if __name__ == '__main__':
     # FIXME:relu_算子，由于当前框架CPU后端不支持原地更新算子的输入输出共用同一个Tensor，会导致反向精度不正确，因此不执行反向测试用例
     pytest.main(['tests/st/mint/test_relu_.py'])
     pytest.main(['tests/st/mint/test_stack.py'])
+    pytest.main(['tests/st/mint/test_cat.py'])
     pytest.main(['tests/st/mint/test_clone.py'])
-    # FIXME: logical_and算子走内部算子，性能不达标
-    #pytest.main(['tests/st/mint/test_logical_and.py'])
+    pytest.main(['tests/st/mint/test_logical_and.py'])
     pytest.main(['tests/st/mint/test_logical_not.py'])
     pytest.main(['tests/st/mint/test_bmm_ext.py'])
-    pytest.main(['tests/st/mint/test_max.py'])
+    # FIXME:max 算子需要重写Customize函数方能跑通，当前框架还不支持
+    #pytest.main(['tests/st/mint/test_max.py'])
     pytest.main(['tests/st/mint/test_max_dim.py'])
-    pytest.main(['tests/st/mint/test_sum_ext.py'])
+    # FIXME:sum 算子需要重写Customize函数方能跑通，当前框架还不支持
+    # pytest.main(['tests/st/mint/test_sum_ext.py'])
     pytest.main(['tests/st/mint/test_exp.py'])
     pytest.main(['tests/st/mint/test_zeros_like.py'])
     # FIXME:index_select算子，反向依赖index_add_接入，暂时不执行反向测试用例
     pytest.main(['tests/st/mint/test_index_select.py'])
+    pytest.main(['tests/st/mint/test_div.py'])
+    pytest.main(['tests/st/mint/test_zeros.py'])
+
 
     pytest.main(['tests/st/mint/test_perf_acos.py'])
     pytest.main(['tests/st/mint/test_perf_copy_.py'])
@@ -39,6 +58,7 @@ if __name__ == '__main__':
     # FIXME: relu_ 算子性能不达标，怀疑是由于框架多申请了一个输出Tensor导致。
     pytest.main(['tests/st/mint/test_perf_relu_.py'])
     pytest.main(['tests/st/mint/test_perf_stack.py'])
+    pytest.main(['tests/st/mint/test_perf_cat.py'])
     pytest.main(['tests/st/mint/test_perf_clone.py'])
     # FIXME: index 算子性能不达标，原因是torch走View，MS暂时不支持。
     pytest.main(['tests/st/mint/test_perf_index.py'])
@@ -47,13 +67,16 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_perf_index_select.py'])
     pytest.main(['tests/st/mint/test_perf_acosh.py'])
     pytest.main(['tests/st/mint/test_perf_asinh.py'])
-    # FIXME: max算子走内部算子，性能不达标
+    # FIXME:max 算子需要重写Customize函数方能跑通，当前框架还不支持
     #pytest.main(['tests/st/mint/test_perf_max.py'])
     pytest.main(['tests/st/mint/test_perf_max_dim.py'])
     pytest.main(['tests/st/mint/test_perf_bmm_ext.py'])
-    # FIXME: sum算子走内部算子，性能不达标
+    # FIXME:sum 算子需要重写Customize函数方能跑通，当前框架还不支持
     #pytest.main(['tests/st/mint/test_perf_sum_ext.py'])
-    # FIXME: cumsum 算子走内置算子，因此性能不达标
-    # pytest.main(['tests/st/mint/test_perf_cumsum.py'])
+    # FIXME: cumsum算子，框架有"Unsupported data type"的bug导致跑不通
+    #pytest.main(['tests/st/mint/test_perf_cumsum.py'])
     # FIXME: zeros_like 算子性能较差，原因未明。
     pytest.main(['tests/st/mint/test_perf_zeros_like.py'])
+    # FIXME: div算子性能稍差,out后缀算子性能差导致。
+    pytest.main(['tests/st/mint/test_perf_div.py'])
+    pytest.main(['tests/st/mint/test_perf_zeros.py'])

@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-""" relu_ op performance test case """
+""" zeros op performance test case """
 # pylint: disable=unused-variable
 # pylint: disable=W0622,W0613
 import time
-import mindspore as ms
 from mindspore import mint
 from mindspore.common.api import _pynative_executor
 from tests.utils.test_op_utils import BACKGROUND_NOISE
@@ -26,14 +25,13 @@ import numpy as np
 import pytest
 
 
-def generate_random_input(shape, dtype):
-    return np.random.randn(*shape).astype(dtype)
+def generate_random_input(size):
+    return size
 
-
-def relu__forward_perf(input):
+def zeros_forward_perf(input):
     """get ms op forward performance"""
-    op = mint.nn.functional.relu_
-    print("================shape: ", input.shape)
+    op = mint.zeros
+    print("================shape: ", input)
 
     for _ in range(1000):
         output = op(input)
@@ -51,8 +49,8 @@ def relu__forward_perf(input):
 
 def generate_expect_forward_perf(input):
     """get torch op forward performance"""
-    op = torch.nn.functional.relu_
-    print("================shape: ", input.shape)
+    op = torch.zeros
+    print("================shape: ", input)
 
     for _ in range(1000):
         output = op(input)
@@ -68,9 +66,14 @@ def generate_expect_forward_perf(input):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_relu__perf(mode):
+def test_zeros_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test zeros op performance.
+    Expectation: expect performance OK.
+    """
     shape = (10, 10, 10, 10, 10, 10)
-    input = generate_random_input(shape, np.float32)
-    ms_perf = relu__forward_perf(ms.Tensor(input))
-    expect_perf = generate_expect_forward_perf(torch.nn.functional.Tensor(input))
+    input = generate_random_input(shape)
+    ms_perf = zeros_forward_perf(input)
+    expect_perf = generate_expect_forward_perf(input)
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()

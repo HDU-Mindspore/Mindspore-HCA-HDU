@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import mindspore
+""" logical_and op performance test case """
+# pylint: disable=unused-variable
+# pylint: disable=W0622,W0613
+import time
 import mindspore as ms
-import mindspore.context as context
-from mindspore import Tensor, ops, mint
+from mindspore import mint
 from mindspore.common.api import _pynative_executor
-from tests.utils.test_op_utils import TEST_OP, BACKGROUND_NOISE
+from tests.utils.test_op_utils import BACKGROUND_NOISE
 from tests.utils.mark_utils import arg_mark
 import torch
 import numpy as np
-import time
 import pytest
 
 
@@ -30,6 +31,7 @@ def generate_random_input(shape):
 
 
 def logical_and_forward_perf(input, other):
+    """get ms op forward performance"""
     op = mint.logical_and
 
     for _ in range(1000):
@@ -47,7 +49,7 @@ def logical_and_forward_perf(input, other):
 
 
 def generate_expect_forward_perf(input, other):
-
+    """get torch op forward performance"""
     op = torch.logical_and
 
     for _ in range(1000):
@@ -71,4 +73,3 @@ def test_logical_and_perf(mode):
     ms_perf = logical_and_forward_perf(ms.Tensor(input), ms.Tensor(other))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other))
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
-
