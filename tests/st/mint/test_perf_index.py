@@ -30,7 +30,7 @@ def generate_random_input(shape, dtype):
     return np.random.randn(*shape).astype(dtype)
 
 
-def stack_forward_perf(input, indices):
+def index_forward_perf(input, indices):
     """get ms op forward performance"""
     op = index
     print("================shape: ", input.shape)
@@ -67,11 +67,16 @@ def generate_expect_forward_perf(input, indices):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_stack_perf(mode):
+def test_index_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test index op performance.
+    Expectation: expect performance OK.
+    """
     shape = (10, 10, 10, 10, 10, 10, 5)
     input = generate_random_input(shape, np.float32)
     indices1 = np.random.randint(0, 10, (10, 10), dtype=np.int32)
 
-    ms_perf = stack_forward_perf(ms.tensor(input), [ms.tensor(indices1), ms.tensor(indices1)])
+    ms_perf = index_forward_perf(ms.tensor(input), [ms.tensor(indices1), ms.tensor(indices1)])
     expect_perf = generate_expect_forward_perf(torch.tensor(input), [torch.tensor(indices1), torch.tensor(indices1)])
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()

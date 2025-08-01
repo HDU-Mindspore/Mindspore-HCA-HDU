@@ -30,7 +30,7 @@ def generate_random_input(shape, dtype):
     return np.random.randn(*shape).astype(dtype)
 
 
-def stack_forward_perf(input):
+def cat_forward_perf(input):
     """get ms op forward performance"""
     op = mint.cat
     print("================shape: ", input.shape)
@@ -68,9 +68,14 @@ def generate_expect_forward_perf(input):
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_stack_perf(mode):
+def test_cat_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test cat op performance.
+    Expectation: expect performance OK.
+    """
     shape = (10, 10, 10, 10, 10, 10)
     input = generate_random_input(shape, np.float32)
-    ms_perf = stack_forward_perf(ms.Tensor(input))
+    ms_perf = cat_forward_perf(ms.Tensor(input))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input))
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.5).all()

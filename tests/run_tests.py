@@ -77,6 +77,6 @@ if __name__ == '__main__':
     #pytest.main(['tests/st/mint/test_perf_cumsum.py'])
     # FIXME: zeros_like 算子性能较差，原因未明。
     pytest.main(['tests/st/mint/test_perf_zeros_like.py'])
-    # FIXME: div算子性能稍差,out后缀算子性能差导致。
+    # FIXME: div算子的round模式走内置算子，原因是框架还不支持接管py_method函数。
     pytest.main(['tests/st/mint/test_perf_div.py'])
     pytest.main(['tests/st/mint/test_perf_zeros.py'])
