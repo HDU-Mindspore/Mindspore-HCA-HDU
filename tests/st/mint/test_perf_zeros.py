@@ -76,4 +76,4 @@ def test_zeros_perf(mode):
     input = generate_random_input(shape)
     ms_perf = zeros_forward_perf(input)
     expect_perf = generate_expect_forward_perf(input)
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 1.1).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2).all()

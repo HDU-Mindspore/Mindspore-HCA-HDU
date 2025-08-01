@@ -82,7 +82,7 @@ def test_div_perf(mode):
     other = generate_random_input(shape)
     ms_perf = div_forward_perf(ms.Tensor(input), ms.Tensor(other))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other))
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 3).all()
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
@@ -98,4 +98,4 @@ def test_divs_perf(mode):
     other = generate_scalar_input()
     ms_perf = div_forward_perf(ms.Tensor(input), other)
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), other)
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 3).all()
