@@ -43,17 +43,17 @@ def generate_expect_backward_output(x, grad):
     return dx
 
 
-def stack_forward_func(x):
+def cat_forward_func(x):
     return mint.cat((x, x, x))
 
 
-def stack_backward_func(x):
-    return ops.grad(stack_forward_func, (0,))(x)
+def cat_backward_func(x):
+    return ops.grad(cat_forward_func, (0,))(x)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
 @pytest.mark.parametrize('mode', ['pynative'])
-def test_stack_std(mode):
+def test_cat_std(mode):
     """
     Feature: standard forward, backward features.
     Description: test function cat.
@@ -67,11 +67,11 @@ def test_stack_std(mode):
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = stack_forward_func(ms.Tensor(x))
-        output_grad = stack_backward_func(ms.Tensor(x))
+        output = cat_forward_func(ms.Tensor(x))
+        output_grad = cat_backward_func(ms.Tensor(x))
     else:
-        output = (jit(stack_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
-        output_grad = (jit(stack_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output = (jit(cat_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output_grad = (jit(cat_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
 
     allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
     allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)
