@@ -51,7 +51,7 @@ def stack_backward_func(x):
     return ops.grad(stack_forward_func, (0,))(x)
 
 
-@arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='essential')
 @pytest.mark.parametrize('mode', ['pynative'])
 def test_stack_std(mode):
     """
