@@ -69,7 +69,7 @@ def generate_expect_forward_perf(input, other):
     return end-start
 
 
-@arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level1', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
 def test_div_perf(mode):
     """
@@ -85,7 +85,7 @@ def test_div_perf(mode):
     assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 3).all()
 
 
-@arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='unessential')
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level1', card_mark='onecard', essential_mark='unessential')
 @pytest.mark.parametrize('mode', ['pynative'])
 def test_divs_perf(mode):
     """

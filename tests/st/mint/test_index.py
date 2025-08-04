@@ -37,7 +37,7 @@ def index_backward_func(x, indices):
     return ms.grad(index_forward_func, (0,))(x, indices)
 
 
-@arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='essential')
 @pytest.mark.parametrize('mode', ['pynative'])
 def test_index_std(mode):
     """
