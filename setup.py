@@ -26,17 +26,30 @@ def _read_file(filename):
 
 version = _read_file('version.txt').replace("\n", "")
 
-package_data = {
-    'ms_op_plugin': [
-        '*.so*',
-    ],
-    'libtorch' : [
-        '*.so',
-    ]
-}
 
-torch_lib = 'third_party/libtorch/lib/' + platform.machine()
-
+arch = platform.machine().replace("AMD64", "x86_64")
+if arch =='x86_64':
+    os_name = 'win' if os.name=='nt' else 'linux'
+    arch = os.path.join(arch, os_name)
+    
+torch_lib = os.path.join('third_party', 'libtorch', 'lib', arch)
+if "win" not in arch:
+    package_data = {
+        'ms_op_plugin': [
+            '*.so*',
+        ],
+        'libtorch' : [
+            '*.so',
+        ]
+    }
+    package_dir={'ms_op_plugin': 'build', 'libtorch': torch_lib}
+else:
+    package_data = {
+        'ms_op_plugin': [
+            '*',
+        ]
+    }
+    package_dir={'ms_op_plugin': 'build\\Release'}
 print(torch_lib)
 
 setup(
@@ -51,7 +64,7 @@ setup(
     description="An op_plugin for MindSpore",
     license='Apache 2.0',
     package_data=package_data,
-    package_dir={'ms_op_plugin': 'build', 'libtorch': torch_lib},
+    package_dir=package_dir,
     include_package_data=True,
     classifiers=[
         'License :: OSI Approved :: Apache Software License'
