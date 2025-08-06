@@ -10,26 +10,53 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Generic compilation options
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-std=c++17" SUPPORT_CXX17)
-if(NOT SUPPORT_CXX17)
-  message(
-    FATAL_ERROR "-- please choose a compiler which support C++ 17 standard")
-endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -Wall -fPIC -fstack-protector-all -Wno-uninitialized -Wno-parentheses")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-z,relro,-z,now,-z,noexecstack")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -pipe -Wall -Wno-unknown-pragmas -Wno-unused-result -Wsign-compare -fPIC -fstack-protector-all -Wno-uninitialized -Wno-parentheses -D_GLIBCXX_USE_CXX11_ABI=0 -DTORCH_API_INCLUDE_EXTENSION_H")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-z,relro,-z,now,-z,noexecstack")
+if(WIN32)
+    message(STATUS "Building on Windows platform with MSVC")
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /W3 /bigobj")
+    if(MSVC_VERSION GREATER_EQUAL 1920) # For VS2019+
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17 /EHsc /W3")
+    endif()
+elseif(UNIX)
+    message(STATUS "Building on Linux platform")
+
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag("-std=c++17" SUPPORT_CXX17)
+    if(NOT SUPPORT_CXX17)
+        message(
+            FATAL_ERROR "-- please choose a compiler which support C++ 17 standard")
+    endif()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -Wall -fPIC -fstack-protector-all -Wno-uninitialized -Wno-parentheses")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-z,relro,-z,now,-z,noexecstack")
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -pipe -Wall -Wno-unknown-pragmas \
+    -Wno-unused-result -Wsign-compare -fPIC -fstack-protector-all -Wno-uninitialized \
+    -Wno-parentheses -D_GLIBCXX_USE_CXX11_ABI=0 -DTORCH_API_INCLUDE_EXTENSION_H")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-z,relro,-z,now,-z,noexecstack")
+endif()
+
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-  message("-- Build in Debug mode")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -rdynamic -ftrapv")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g -rdynamic -ftrapv")
+    message("-- Build in Debug mode")
+    if(WIN32)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Od /Zi /RTC1")
+    else()
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -rdynamic -ftrapv")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g -rdynamic -ftrapv")
+    endif()
 else()
-  message("-- Build in Release mode")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -D_FORTIFY_SOURCE=2 -Werror")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -D_FORTIFY_SOURCE=2 -Werror")
+    message("-- Build in Release mode")
+    if(WIN32)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
+    else()
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -D_FORTIFY_SOURCE=2 -Werror")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -D_FORTIFY_SOURCE=2 -Werror")
+    endif()
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -39,8 +66,7 @@ get_filename_component(OP_PLUGIN_SOURCE_DIR "${OP_PLUGIN_SOURCE_DIR}" ABSOLUTE)
 message("OP_PLUGIN_SOURCE_DIR = ${OP_PLUGIN_SOURCE_DIR}")
 
 
-# libtorch 
-
+# libtorch
 set(TORCH_LIBS ${OP_PLUGIN_SOURCE_DIR}/third_party/libtorch)
 
 include_directories(${OP_PLUGIN_SOURCE_DIR}/op_plugin)
@@ -48,11 +74,16 @@ include_directories(${TORCH_LIBS}/include)
 include_directories(${TORCH_LIBS}/include/torch/csrc/api/include)
 include_directories(${TORCH_LIBS}/include/TH)
 include_directories(${TORCH_LIBS}/include/THC)
-
-if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64")
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(TORCH_LIBS_PATH ${TORCH_LIBS}/lib/aarch64)
-else(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
-    set(TORCH_LIBS_PATH ${TORCH_LIBS}/lib/x86_64)
+elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "AMD64")
+    if(WIN32)
+        message("TORCH_LIBS_PATH:${TORCH_LIBS}/lib/x86_64/win")
+        set(TORCH_LIBS_PATH ${TORCH_LIBS}/lib/x86_64/win/)
+    else()
+        set(TORCH_LIBS_PATH ${TORCH_LIBS}/lib/x86_64/linux/)
+    endif()
+
 endif()
 message(STATUS "this is ${TORCH_LIBS_PATH}")
 
@@ -90,11 +121,11 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 # Source file lists
 file(
-  GLOB
-  OP_PLUGIN_SRCS
-  ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/*.cc
-  ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/kernel/*.cc
-  ${OP_PLUGIN_SOURCE_DIR}/op_plugin/utils/*.cc)
+    GLOB
+    OP_PLUGIN_SRCS
+    ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/*.cc
+    ${OP_PLUGIN_SOURCE_DIR}/op_plugin/ops/kernel/*.cc
+    ${OP_PLUGIN_SOURCE_DIR}/op_plugin/utils/*.cc)
 
 add_library(ms_op_plugin SHARED ${OP_PLUGIN_SRCS})
 
