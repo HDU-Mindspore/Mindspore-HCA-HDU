@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""MindSpore custom operator plugin setup configuration."""
 
 import os
 import platform
@@ -28,28 +29,27 @@ version = _read_file('version.txt').replace("\n", "")
 
 
 arch = platform.machine().replace("AMD64", "x86_64")
-if arch =='x86_64':
-    os_name = 'win' if os.name=='nt' else 'linux'
+if arch == 'x86_64':
+    os_name = 'win' if os.name == 'nt' else 'linux'
     arch = os.path.join(arch, os_name)
-    
 torch_lib = os.path.join('third_party', 'libtorch', 'lib', arch)
 if "win" not in arch:
     package_data = {
         'ms_op_plugin': [
             '*.so*',
         ],
-        'libtorch' : [
+        'libtorch': [
             '*.so',
         ]
     }
-    package_dir={'ms_op_plugin': 'build', 'libtorch': torch_lib}
+    package_dir = {'ms_op_plugin': 'build', 'libtorch': torch_lib}
 else:
     package_data = {
         'ms_op_plugin': [
             '*',
         ]
     }
-    package_dir={'ms_op_plugin': 'build\\Release'}
+    package_dir = {'ms_op_plugin': 'build\\Release'}
 print(torch_lib)
 
 setup(
