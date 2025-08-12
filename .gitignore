@@ -2,5 +2,6 @@ build/
 dist/
 ms_op_plugin.egg-info/
 output/
+generated_reg.h
 
 *__pycache__*

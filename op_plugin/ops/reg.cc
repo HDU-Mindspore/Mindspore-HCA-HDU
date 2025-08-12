@@ -17,13 +17,25 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-
-const std::vector<std::string> register_op_name = {
-  "AcosExt",      "AcoshExt",      "AsinExt", "AsinhExt",    "AtanExt", "BmmExt",      "Clone",       "Cos",
-  "CumsumExt",    "Div",           "Exp",     "IndexSelect", "Index",   "InplaceCopy", "InplaceReLU", "LogicalAnd",
-  "LogicalNot",   "MaxDim",        "Max",     "Maximum",     "Sin",     "StackExt",    "SumExt",   "UnstackExtView",
-  "ZerosLikeExt", "BatchMatMulExt", "Divs",   "Zeros",       "Concat",  "InplaceScatterSrc"};
+#include <mutex>
+#include "ops/generated_reg.h"
 
 extern "C" bool IsKernelRegistered(const char *op_name) {
   return std::find(register_op_name.begin(), register_op_name.end(), op_name) != register_op_name.end();
+}
+
+extern "C" int GetRegisteredOpCount() {
+  return static_cast<int>(register_op_name.size());
+}
+
+extern "C" const char** GetAllRegisteredOps() {
+  static std::vector<const char*> op_names;
+  static bool initialized = false;
+  if (!initialized) {
+    op_names.reserve(register_op_name.size());
+    std::transform(register_op_name.begin(), register_op_name.end(), std::back_inserter(op_names),
+                   [](const std::string& name) { return name.c_str(); });
+    initialized = true;
+  }
+  return op_names.data();
 }
