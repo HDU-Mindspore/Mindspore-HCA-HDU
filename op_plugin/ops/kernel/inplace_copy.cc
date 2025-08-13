@@ -19,11 +19,19 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int InplaceCopy(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                       void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
-  auto at_self = tensors[0];
-  auto at_src = tensors[1];
-  at_self.copy_(at_src);
+  auto self = tensors[0];
+  auto src = tensors[1];
+
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
+  bool non_blocking = input_utils.GetKernelInput<bool>(2);
+  self.copy_(src, non_blocking);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

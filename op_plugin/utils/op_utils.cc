@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <string.h>
-#include <torch/extension.h>  // 头文件引用部分
+#include "utils/op_utils.h"
+#include <torch/extension.h>
+#include <string>
+#include <unordered_map>
 
+
+namespace op_plugin {
 int8_t GetDtype(const std::string &dtypes) {
   int8_t type = 6;
   std::unordered_map<std::string, int8_t> m{{"uint8", 0}, {"int8", 1},     {"int16", 2},   {"int32", 3},
@@ -43,40 +47,17 @@ std::vector<at::Tensor> ConvertToATenTensors(int nparam, void **params, int *ndi
   return tensors;
 }
 
-/*
-at::Scalar ConvertToATenScalar(const ScalarPtr &scalar) {
-  MS_EXCEPTION_IF_NULL(scalar);
-
-  TypePtr data_type = scalar->type();
-  MS_EXCEPTION_IF_NULL(data_type);
-  TypeId type_id = data_type->type_id();
-  switch (type_id) {
-    case kNumberTypeBool:
-      return at::Scalar(GetValue<bool>(scalar));
-    case kNumberTypeInt8:
-      return at::Scalar(GetValue<int8_t>(scalar));
-    case kNumberTypeInt16:
-      return at::Scalar(GetValue<int16_t>(scalar));
-    case kNumberTypeInt32:
-      return at::Scalar(GetValue<int32_t>(scalar));
-    case kNumberTypeInt64:
-      return at::Scalar(GetValue<int64_t>(scalar));
-    case kNumberTypeUInt8:
-      return at::Scalar(GetValue<uint8_t>(scalar));
-    case kNumberTypeUInt16:
-      return at::Scalar(GetValue<uint16_t>(scalar));
-    case kNumberTypeUInt32:
-      return at::Scalar(GetValue<uint32_t>(scalar));
-    case kNumberTypeUInt64:
-      return at::Scalar(GetValue<uint64_t>(scalar));
-    case kNumberTypeFloat32:
-      return at::Scalar(GetValue<float>(scalar));
-    case kNumberTypeFloat64:
-      return at::Scalar(GetValue<double>(scalar));
-    default:
-      MS_LOG(EXCEPTION) << "When convert scalar to tensor, the scalar type: " << data_type << " is invalid.";
-  }
-}
-*/
-
 void output_memcpy(void *output, const torch::Tensor &t) { memcpy(output, t.data_ptr(), t.element_size() * t.numel()); }
+
+bool KernelInputUtils::IsNoneInput(size_t idx) {
+  auto input_dtype = static_cast<TypeId>(input_info_.GetInputTypeId(idx));
+  if (input_dtype == kMetaTypeNone) {
+    return true;
+  }
+  return false;
+}
+
+bool KernelInputUtils::IsScalarInput(size_t idx) {
+  return input_info_.IsScalarInput(idx);
+}
+}  // namespace op_plugin

@@ -19,16 +19,21 @@
 
 #include "utils/op_utils.h"
 
-extern "C" int Index(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream, void *extra) {
+namespace op_plugin {
+namespace aten_op {
+extern "C" int Index(int nparam, void **params, int *ndims, int64_t **shapes,
+                     const char **dtypes, void *stream, void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto self = tensors[0];
   auto at_output = tensors[nparam - 1];
 
   c10::List<c10::optional<at::Tensor>> at_indices;
-  for(auto it = tensors.begin() + 1; it != tensors.end() - 1; ++it) {
+  for (auto it = tensors.begin() + 1; it != tensors.end() - 1; ++it) {
     at_indices.push_back(*it);
   }
 
   at::index_out(at_output, self, at_indices);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

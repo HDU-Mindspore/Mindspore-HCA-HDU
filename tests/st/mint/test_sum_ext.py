@@ -31,24 +31,24 @@ def generate_ones_grad(shape, dtype):
     return np.ones(shape).astype(dtype)
 
 
-def generate_expect_forward_output(x):
-    return torch.sum(x)
+def generate_expect_forward_output(x, dim):
+    return torch.sum(x, dim)
 
 
-def generate_expect_backward_output(x, grad):
+def generate_expect_backward_output(x, dim, grad):
     x.requires_grad = True
-    out = torch.sum(x)
+    out = torch.sum(x, dim)
     out.backward(grad)
     dx = x.grad
     return dx
 
 
-def sum_forward_func(x):
-    return mint.sum(x)
+def sum_forward_func(x, dim):
+    return mint.sum(x, dim)
 
 
-def sum_backward_func(x):
-    return ops.grad(sum_forward_func, (0,))(x)
+def sum_backward_func(x, dim):
+    return ops.grad(sum_forward_func, (0,))(x, dim)
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level2', card_mark='onecard', essential_mark='essential')
@@ -60,18 +60,18 @@ def test_sum_ext_std(mode):
     Expectation: expect correct result.
     """
     x = generate_random_input((2, 3, 4), np.float32)
-    expect = generate_expect_forward_output(torch.Tensor(x))
-
+    dim = (0, 1)
+    expect = generate_expect_forward_output(torch.Tensor(x), dim)
     grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
-    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(grad))
+    expect_grad = generate_expect_backward_output(torch.Tensor(x), dim, torch.Tensor(grad))
 
     if mode == 'pynative':
         ms.context.set_context(mode=ms.PYNATIVE_MODE)
-        output = sum_forward_func(ms.Tensor(x))
-        output_grad = sum_backward_func(ms.Tensor(x))
+        output = sum_forward_func(ms.Tensor(x), dim)
+        output_grad = sum_backward_func(ms.Tensor(x), dim)
     else:
-        output = (jit(sum_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
-        output_grad = (jit(sum_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x))
+        output = (jit(sum_forward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim)
+        output_grad = (jit(sum_backward_func, backend="ms_backend", jit_level="O0"))(ms.Tensor(x), dim)
 
     allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
     allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

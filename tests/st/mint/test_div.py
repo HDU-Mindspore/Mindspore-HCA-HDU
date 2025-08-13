@@ -117,3 +117,62 @@ def test_divs_std(mode):
 
     allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
     allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)
+
+
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
+@pytest.mark.parametrize('mode', ['pynative'])
+def test_divmod_std(mode):
+    """
+    Feature: standard forward, backward features.
+    Description: test function div.
+    Expectation: expect correct result.
+    """
+    x = generate_random_input((2, 3, 4), np.float32)
+    other = generate_random_input((2, 3, 4), np.float32)
+    expect = generate_expect_forward_output(torch.Tensor(x), torch.Tensor(other), rounding_mode="floor")
+
+    grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
+    expect_grad = generate_expect_backward_output(torch.Tensor(x), torch.Tensor(other), torch.Tensor(grad),
+                                                  rounding_mode="floor")
+
+    if mode == 'pynative':
+        ms.context.set_context(mode=ms.PYNATIVE_MODE)
+        output = div_forward_func(ms.Tensor(x), ms.Tensor(other), rounding_mode="floor")
+        output_grad = div_backward_func(ms.Tensor(x), ms.Tensor(other), rounding_mode="floor")
+    else:
+        output = jit(div_forward_func, backend="ms_backend", jit_level="O0")(
+            ms.Tensor(x), ms.Tensor(other), rounding_mode="floor")
+        output_grad = jit(div_backward_func, backend="ms_backend", jit_level="O0")(
+            ms.Tensor(x), ms.Tensor(other), rounding_mode="floor")
+
+    allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
+    allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)
+
+
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level0', card_mark='onecard', essential_mark='essential')
+@pytest.mark.parametrize('mode', ['pynative'])
+def test_divmods_std(mode):
+    """
+    Feature: standard forward, backward features.
+    Description: test function div.
+    Expectation: expect correct result.
+    """
+    x = generate_random_input((2, 3, 4), np.float32)
+    other = generate_scalar_input()
+    expect = generate_expect_forward_output(torch.Tensor(x), other, rounding_mode="floor")
+
+    grad = generate_ones_grad(expect.shape, expect.numpy().dtype)
+    expect_grad = generate_expect_backward_output(torch.Tensor(x), other, torch.Tensor(grad), rounding_mode="floor")
+
+    if mode == 'pynative':
+        ms.context.set_context(mode=ms.PYNATIVE_MODE)
+        output = div_forward_func(ms.Tensor(x), other, rounding_mode="floor")
+        output_grad = div_backward_func(ms.Tensor(x), other, rounding_mode="floor")
+    else:
+        output = jit(div_forward_func, backend="ms_backend", jit_level="O0")(
+            ms.Tensor(x), other, rounding_mode="floor")
+        output_grad = jit(div_backward_func, backend="ms_backend", jit_level="O0")(
+            ms.Tensor(x), other, rounding_mode="floor")
+
+    allclose_nparray(expect.detach().numpy(), output.asnumpy(), equal_nan=True)
+    allclose_nparray(expect_grad.detach().numpy(), output_grad.asnumpy(), equal_nan=True)

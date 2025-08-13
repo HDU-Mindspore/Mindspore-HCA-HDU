@@ -19,6 +19,8 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int SumExt(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                          void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
@@ -26,12 +28,18 @@ extern "C" int SumExt(int nparam, void **params, int *ndims, int64_t **shapes, c
   auto at_input = tensors[0];
   auto at_output = tensors[nparam - 1];
 
-  KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
-  auto dim = kernel_input_info->GetKernelInput<std::vector<int64_t>>(1);
-  c10::optional<c10::IntArrayRef> pt_dim(dim);
-  bool keepdim = kernel_input_info->GetKernelInput<bool>(2);
-  auto at_dtype = kernel_input_info->GetKernelInput<c10::optional<at::ScalarType>>(3);
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
+  bool keepdim = input_utils.GetKernelInput<bool>(2);
+  auto dtype = input_utils.GetKernelInput<c10::optional<at::ScalarType>>(3);
 
-  at::sum_out(at_output, at_input, pt_dim, keepdim, at_dtype);
+  if (input_utils.IsNoneInput(1)) {
+    at::sum_out(at_output, at_input, c10::nullopt, keepdim, dtype);
+  } else {
+    auto dim = input_utils.GetKernelInput<std::vector<int64_t>>(1);
+    at::sum_out(at_output, at_input, dim, keepdim, dtype);
+  }
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

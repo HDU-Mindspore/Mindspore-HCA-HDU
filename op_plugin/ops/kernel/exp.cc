@@ -19,6 +19,8 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int Exp(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                    void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
@@ -27,3 +29,5 @@ extern "C" int Exp(int nparam, void **params, int *ndims, int64_t **shapes, cons
   at::exp_out(at_output, at_input);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

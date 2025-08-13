@@ -19,6 +19,8 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int CumsumExt(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                         void *extra_void) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
@@ -33,3 +35,5 @@ extern "C" int CumsumExt(int nparam, void **params, int *ndims, int64_t **shapes
   at::cumsum_out(at_output, at_input, dim, at_dtype);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

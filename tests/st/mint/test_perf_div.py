@@ -82,7 +82,7 @@ def test_div_perf(mode):
     other = generate_random_input(shape)
     ms_perf = div_forward_perf(ms.Tensor(input), ms.Tensor(other))
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), torch.Tensor(other))
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 3).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
 
 
 @arg_mark(plat_marks=['cpu_linux'], level_mark='level1', card_mark='onecard', essential_mark='unessential')
@@ -98,4 +98,70 @@ def test_divs_perf(mode):
     other = generate_scalar_input()
     ms_perf = div_forward_perf(ms.Tensor(input), other)
     expect_perf = generate_expect_forward_perf(torch.Tensor(input), other)
-    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 3).all()
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
+
+
+def divmod_forward_perf(input, other, rounding_mode):
+    """get ms op forward performance"""
+    op = mint.div
+
+    for _ in range(1000):
+        output = op(input, other, rounding_mode=rounding_mode)
+
+    _pynative_executor.sync()
+    start = time.time()
+    for _ in range(1000):
+        output = op(input, other, rounding_mode=rounding_mode)
+    _pynative_executor.sync()
+    end = time.time()
+
+    print(f"MindSpore {op} e2e time: ", (end-start))
+    return  end-start
+
+
+def generate_expect_divmod_forward_perf(input, other, rounding_mode):
+    """get torch op forward performance"""
+    op = torch.div
+
+    for _ in range(1000):
+        output = op(input, other, rounding_mode=rounding_mode)
+
+    start = time.time()
+    for _ in range(1000):
+        output = op(input, other, rounding_mode=rounding_mode)
+    end = time.time()
+
+    print(f"Torch {op} e2e time: ", end-start)
+    return end-start
+
+
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level1', card_mark='onecard', essential_mark='unessential')
+@pytest.mark.parametrize('mode', ['pynative'])
+def test_divmod_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test div op performance.
+    Expectation: expect performance OK.
+    """
+    shape = (10, 10, 10, 10, 10, 10)
+    input = generate_random_input(shape)
+    other = generate_random_input(shape)
+    ms_perf = divmod_forward_perf(ms.Tensor(input), ms.Tensor(other), rounding_mode="floor")
+    expect_perf = generate_expect_divmod_forward_perf(torch.Tensor(input), torch.Tensor(other), rounding_mode="floor")
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
+
+
+@arg_mark(plat_marks=['cpu_linux'], level_mark='level1', card_mark='onecard', essential_mark='unessential')
+@pytest.mark.parametrize('mode', ['pynative'])
+def test_divmods_perf(mode):
+    """
+    Feature: standard forward performance.
+    Description: test div op performance.
+    Expectation: expect performance OK.
+    """
+    shape = (10, 10, 10, 10, 10, 10)
+    input = generate_random_input(shape)
+    other = generate_scalar_input()
+    ms_perf = divmod_forward_perf(ms.Tensor(input), other, rounding_mode="floor")
+    expect_perf = generate_expect_divmod_forward_perf(torch.Tensor(input), other, rounding_mode="floor")
+    assert np.less(ms_perf - BACKGROUND_NOISE, expect_perf * 2.5).all()
