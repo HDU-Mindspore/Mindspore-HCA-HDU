@@ -19,6 +19,8 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int InplaceScatterSrc(int nparam, void **params, int *ndims, int64_t **shapes,
                                  const char **dtypes, void *stream, void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
@@ -27,9 +29,12 @@ extern "C" int InplaceScatterSrc(int nparam, void **params, int *ndims, int64_t 
   auto at_src = tensors[3];
   auto at_output = tensors[nparam - 1];
 
-  KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
-  int64_t dim = kernel_input_info->GetKernelInput<int64_t>(1);
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
+  int64_t dim = input_utils.GetKernelInput<int64_t>(1);
 
   at::scatter_out(at_output, at_input, dim, at_index, at_src);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

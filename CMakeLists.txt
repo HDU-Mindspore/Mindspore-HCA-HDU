@@ -144,6 +144,13 @@ add_library(ms_op_plugin SHARED ${OP_PLUGIN_SRCS})
 # Ensure the library depends on the generated registry
 add_dependencies(ms_op_plugin generate_op_registry)
 
+if(ENABLE_ASAN)
+  target_compile_options(ms_op_plugin PUBLIC -fsanitize=address)
+  target_compile_options(ms_op_plugin PUBLIC -fno-omit-frame-pointer)
+  target_compile_options(ms_op_plugin PUBLIC -g)
+  target_link_options(ms_op_plugin PUBLIC -fsanitize=address)
+endif()
+
 target_link_libraries(ms_op_plugin PUBLIC ${TORCH_CPU} ${C10})
 
 install(TARGETS ms_op_plugin DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/lib)

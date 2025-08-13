@@ -21,12 +21,17 @@
 
 namespace op_plugin {
 namespace aten_op {
-extern "C" int Max(int nparam, void **params, int *ndims, int64_t **shapes,
-                   const char **dtypes, void *stream, void *extra) {
+extern "C" int Ones(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
+                         void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
-  auto at_input1 = tensors[0];
-  auto at_output = tensors[1];
-  at::max_out(at_output, at_input1);
+
+  auto at_output = tensors[nparam - 1];
+
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
+  auto size = input_utils.GetKernelInput<std::vector<int64_t>>(0);
+
+  at::ones_out(at_output, size);
   return 0;
 }
 }  // namespace aten_op

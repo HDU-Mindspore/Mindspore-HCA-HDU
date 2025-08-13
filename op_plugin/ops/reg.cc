@@ -20,6 +20,8 @@
 #include <mutex>
 #include "ops/generated_reg.h"
 
+namespace op_plugin {
+
 extern "C" bool IsKernelRegistered(const char *op_name) {
   return std::find(register_op_name.begin(), register_op_name.end(), op_name) != register_op_name.end();
 }
@@ -39,3 +41,4 @@ extern "C" const char** GetAllRegisteredOps() {
   }
   return op_names.data();
 }
+}  // namespace op_plugin

@@ -19,10 +19,15 @@
 
 #include "utils/op_utils.h"
 
-extern "C" int LogicalNot(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream, void *extra) {
+namespace op_plugin {
+namespace aten_op {
+extern "C" int LogicalNot(int nparam, void **params, int *ndims, int64_t **shapes,
+                          const char **dtypes, void *stream, void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input1 = tensors[0];
   auto at_output = tensors[1];
   at::logical_not_out(at_output, at_input1);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

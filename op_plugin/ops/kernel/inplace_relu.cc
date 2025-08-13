@@ -19,11 +19,14 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int InplaceReLU(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                            void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
-  auto at_input = tensors[0];
-  auto at_output = tensors[1];
-  at::relu_(at_input);
+  auto self = tensors[0];
+  at::relu_(self);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

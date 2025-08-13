@@ -19,16 +19,20 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int Zeros(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                          void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
 
   auto at_output = tensors[nparam - 1];
 
-  KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
-  auto size = kernel_input_info->GetKernelInput<std::vector<int64_t>>(0);
-  c10::IntArrayRef pt_size(size);
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
+  auto size = input_utils.GetKernelInput<std::vector<int64_t>>(0);
 
-  at::zeros_out(at_output, pt_size);
+  at::zeros_out(at_output, size);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

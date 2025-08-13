@@ -32,25 +32,23 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_atan.py'])
     # FIXME:relu_算子，由于当前框架CPU后端不支持原地更新算子的输入输出共用同一个Tensor，会导致反向精度不正确，因此不执行反向测试用例
     pytest.main(['tests/st/mint/test_relu_.py'])
-    # FIXME: 框架机制问题，暂不支持stack算子。
-    # pytest.main(['tests/st/mint/test_stack.py'])
-    # FIXME: 框架机制问题，暂不支持cat算子。
-    # pytest.main(['tests/st/mint/test_cat.py'])
+    pytest.main(['tests/st/mint/test_stack.py'])
+    pytest.main(['tests/st/mint/test_cat.py'])
     pytest.main(['tests/st/mint/test_clone.py'])
     pytest.main(['tests/st/mint/test_logical_and.py'])
     pytest.main(['tests/st/mint/test_logical_not.py'])
     pytest.main(['tests/st/mint/test_bmm_ext.py'])
-    # FIXME:max 算子需要重写Customize函数方能跑通，当前框架还不支持
-    #pytest.main(['tests/st/mint/test_max.py'])
+    # FIXME:max算子，由于CPU后端反向不支持View+Inplace操作，因此暂不执行反向测试用例
+    pytest.main(['tests/st/mint/test_max.py'])
     pytest.main(['tests/st/mint/test_max_dim.py'])
-    # FIXME:sum 算子需要重写Customize函数方能跑通，当前框架还不支持
-    # pytest.main(['tests/st/mint/test_sum_ext.py'])
+    pytest.main(['tests/st/mint/test_sum_ext.py'])
     pytest.main(['tests/st/mint/test_exp.py'])
     pytest.main(['tests/st/mint/test_zeros_like.py'])
-    # FIXME:index_select算子，反向依赖index_add_接入，暂时不执行反向测试用例
+    # FIXME:index_selec算子，反向使用了原地更新算子，但更新后的Tensor没有返回到Host侧，导致反向结果错误，待定位。
     pytest.main(['tests/st/mint/test_index_select.py'])
     pytest.main(['tests/st/mint/test_div.py'])
     pytest.main(['tests/st/mint/test_zeros.py'])
+    pytest.main(['tests/st/mint/test_ones.py'])
 
 
     pytest.main(['tests/st/mint/test_perf_acos.py'])
@@ -59,29 +57,23 @@ if __name__ == '__main__':
     pytest.main(['tests/st/mint/test_perf_atan.py'])
     # FIXME: relu_ 算子性能不达标，怀疑是由于框架多申请了一个输出Tensor导致。
     pytest.main(['tests/st/mint/test_perf_relu_.py'])
-    # FIXME: 框架机制问题，暂不支持stack算子。
-    # pytest.main(['tests/st/mint/test_perf_stack.py'])
-    # FIXME: 框架机制问题，暂不支持cat算子。
-    # pytest.main(['tests/st/mint/test_perf_cat.py'])
+    pytest.main(['tests/st/mint/test_perf_stack.py'])
+    pytest.main(['tests/st/mint/test_perf_cat.py'])
     pytest.main(['tests/st/mint/test_perf_clone.py'])
     # FIXME: index 算子性能不达标，原因是torch走View，MS暂时不支持。
-    # FIXME: 框架机制问题，暂不支持index算子。
-    # pytest.main(['tests/st/mint/test_perf_index.py'])
+    pytest.main(['tests/st/mint/test_perf_index.py'])
     pytest.main(['tests/st/mint/test_perf_logical_and.py'])
     pytest.main(['tests/st/mint/test_perf_logical_not.py'])
     pytest.main(['tests/st/mint/test_perf_index_select.py'])
     pytest.main(['tests/st/mint/test_perf_acosh.py'])
     pytest.main(['tests/st/mint/test_perf_asinh.py'])
-    # FIXME:max 算子需要重写Customize函数方能跑通，当前框架还不支持
-    #pytest.main(['tests/st/mint/test_perf_max.py'])
+    pytest.main(['tests/st/mint/test_perf_max.py'])
     pytest.main(['tests/st/mint/test_perf_max_dim.py'])
     pytest.main(['tests/st/mint/test_perf_bmm_ext.py'])
-    # FIXME:sum 算子需要重写Customize函数方能跑通，当前框架还不支持
-    #pytest.main(['tests/st/mint/test_perf_sum_ext.py'])
-    # FIXME: cumsum算子，框架有"Unsupported data type"的bug导致跑不通
-    #pytest.main(['tests/st/mint/test_perf_cumsum.py'])
+    pytest.main(['tests/st/mint/test_perf_sum_ext.py'])
+    pytest.main(['tests/st/mint/test_perf_cumsum.py'])
     # FIXME: zeros_like 算子性能较差，原因未明。
     pytest.main(['tests/st/mint/test_perf_zeros_like.py'])
-    # FIXME: div算子的round模式走内置算子，原因是框架还不支持接管py_method函数。
     pytest.main(['tests/st/mint/test_perf_div.py'])
+    pytest.main(['tests/st/mint/test_perf_ones.py'])
     pytest.main(['tests/st/mint/test_perf_zeros.py'])

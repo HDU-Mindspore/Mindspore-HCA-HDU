@@ -19,16 +19,21 @@
 
 #include "utils/op_utils.h"
 
+namespace op_plugin {
+namespace aten_op {
 extern "C" int Divs(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream,
                    void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input1 = tensors[0];
   auto at_output = tensors[2];
 
-  KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
 
-  auto at_scalar_input = kernel_input_info->GetKernelInput<at::Scalar>(1);
+  auto at_scalar_input = input_info.GetKernelInput<at::Scalar>(1);
   at::div_out(at_output, at_input1, at_scalar_input);
 
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin

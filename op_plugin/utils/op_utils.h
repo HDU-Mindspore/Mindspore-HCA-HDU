@@ -15,12 +15,14 @@
  */
 
 
+#ifndef MS_PLUGIN_OP_UTILS_H_
+#define MS_PLUGIN_OP_UTILS_H_
 #include <torch/extension.h>
 
 #include <string>
 #include <vector>
 
-
+namespace op_plugin {
 /// \brief TypeId defines data type identifiers.
 enum TypeId : int {
   kTypeUnknown = 0,
@@ -124,14 +126,17 @@ class CustomKernelData {
   virtual ~CustomKernelData() = default;
 };
 
+// KernelInputInfo is an interface class.
+// There is also a copy of the same code in the MindSpore repository.
+// Both sides should be consistent and neither side's code should be modified separately.
 class KernelInputInfo {
  public:
   KernelInputInfo() = default;
   virtual ~KernelInputInfo() = default;
-  virtual bool IsScalarKernelInput(size_t idx) = 0;
+  virtual bool IsScalarInput(size_t idx) = 0;
 
   template <typename T>
-  inline T GetKernelInput(size_t idx) {
+  inline T GetKernelInput(size_t) const {
     return T();
   }
 
@@ -139,7 +144,7 @@ class KernelInputInfo {
   const std::vector<size_t> &WorkSpace() const { return workspace_; }
 
   void SetKernelData(CustomKernelData *kernel_data) { kernel_data_ = kernel_data; }
-  CustomKernelData *KernelData() const { return kernel_data_; }
+  const CustomKernelData *KernelData() const { return kernel_data_; }
 
   void DestructKernelData() {
     delete kernel_data_;
@@ -147,7 +152,6 @@ class KernelInputInfo {
   }
   virtual size_t GetInputSize() = 0;
 
- private:
   virtual bool GetBoolInput(size_t idx) = 0;
   virtual int64_t GetIntInput(size_t idx) = 0;
   virtual float GetFloatInput(size_t idx) = 0;
@@ -160,72 +164,116 @@ class KernelInputInfo {
   virtual int GetInputTypeId(size_t idx) = 0;
   std::vector<size_t> workspace_;
 
+ private:
   CustomKernelData *kernel_data_{nullptr};
 };
 
+class KernelInputUtils {
+ public:
+  explicit KernelInputUtils(KernelInputInfo &input_info) : input_info_(input_info) {}
+  ~KernelInputUtils() = default;
+  bool IsNoneInput(size_t idx);
+  bool IsScalarInput(size_t idx);
+
+  template <typename T>
+  inline T GetKernelInput(size_t idx) {
+    return T();
+  }
+
+ private:
+  KernelInputInfo& input_info_;
+};
+
 template <>
-inline bool KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetBoolInput(idx);
+inline bool KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetBoolInput(idx);
 }
 
 template <>
-inline int64_t KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetIntInput(idx);
+inline c10::optional<bool> KernelInputUtils::GetKernelInput(size_t idx) {
+  if (IsNoneInput(idx)) {
+    return c10::nullopt;
+  }
+  return input_info_.GetBoolInput(idx);
 }
 
 template <>
-inline float KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetFloatInput(idx);
+inline int64_t KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetIntInput(idx);
 }
 
 template <>
-inline std::string KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetStrInput(idx);
+inline c10::optional<int64_t> KernelInputUtils::GetKernelInput(size_t idx) {
+  if (IsNoneInput(idx)) {
+    return c10::nullopt;
+  }
+  return input_info_.GetIntInput(idx);
 }
 
 template <>
-inline std::vector<int64_t> KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetIntVecInput(idx);
+inline float KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetFloatInput(idx);
 }
 
 template <>
-inline std::vector<float> KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetFloatVecInput(idx);
+inline c10::optional<float> KernelInputUtils::GetKernelInput(size_t idx) {
+  if (IsNoneInput(idx)) {
+    return c10::nullopt;
+  }
+  return input_info_.GetFloatInput(idx);
 }
 
 template <>
-inline std::vector<std::vector<int64_t>> KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetInt2DVecInput(idx);
+inline std::string KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetStrInput(idx);
 }
 
 template <>
-inline std::vector<std::vector<float>> KernelInputInfo::GetKernelInput(size_t idx) {
-  return GetFloat2DVecInput(idx);
+inline std::vector<int64_t> KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetIntVecInput(idx);
 }
 
 template <>
-inline at::Scalar KernelInputInfo::GetKernelInput(size_t idx) {
-  auto input_dtype = static_cast<TypeId>(GetInputTypeId(idx));
+inline std::vector<float> KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetFloatVecInput(idx);
+}
+
+template <>
+inline std::vector<std::vector<int64_t>> KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetInt2DVecInput(idx);
+}
+
+template <>
+inline std::vector<std::vector<float>> KernelInputUtils::GetKernelInput(size_t idx) {
+  return input_info_.GetFloat2DVecInput(idx);
+}
+
+template <>
+inline at::Scalar KernelInputUtils::GetKernelInput(size_t idx) {
+  auto input_dtype = static_cast<TypeId>(input_info_.GetInputTypeId(idx));
   switch (input_dtype) {
     case kNumberTypeBool:
-      return at::Scalar(GetBoolInput(idx));
+      return at::Scalar(input_info_.GetBoolInput(idx));
     case kNumberTypeInt64:
-      return at::Scalar(GetIntInput(idx));
+      return at::Scalar(input_info_.GetIntInput(idx));
     case kNumberTypeFloat32:
-      return at::Scalar(GetFloatInput(idx));
+      return at::Scalar(input_info_.GetFloatInput(idx));
     default:
-      throw std::runtime_error("Convert MS Scalar to at::Scalar error, unsupported Scalar type:" +
+      throw std::runtime_error("Convert MS Scalar to at::Scalar error, unsupported Scalar type enum num:" +
         std::to_string(input_dtype) + ".");
   }
 }
 
 template <>
-inline c10::optional<at::ScalarType> KernelInputInfo::GetKernelInput(size_t idx) {
-  auto input_dtype = static_cast<TypeId>(GetInputTypeId(idx));
-  if (input_dtype == kMetaTypeNone) {
+inline c10::optional<at::Scalar> KernelInputUtils::GetKernelInput(size_t idx) {
+  if (IsNoneInput(idx)) {
     return c10::nullopt;
   }
+  return GetKernelInput<at::Scalar>(idx);
+}
 
+template <>
+inline at::ScalarType KernelInputUtils::GetKernelInput(size_t idx) {
   auto dtype_value = GetKernelInput<int64_t>(idx);
   switch (dtype_value) {
     case kNumberTypeBool:
@@ -261,7 +309,17 @@ inline c10::optional<at::ScalarType> KernelInputInfo::GetKernelInput(size_t idx)
     case kNumberTypeComplex128:
       return at::ScalarType::ComplexDouble;
     default:
-      throw std::runtime_error("Convert MS dtype to at::ScalarType error, unsupported Dtype:" +
-        std::to_string(input_dtype) + ".");
+      throw std::runtime_error("Convert MS dtype to at::ScalarType error, unsupported dtype enum num:" +
+        std::to_string(dtype_value) + ".");
   }
 }
+
+template <>
+inline c10::optional<at::ScalarType> KernelInputUtils::GetKernelInput(size_t idx) {
+  if (IsNoneInput(idx)) {
+    return c10::nullopt;
+  }
+  return GetKernelInput<at::ScalarType>(idx);
+}
+}  // namespace op_plugin
+#endif  //  MS_PLUGIN_OP_UTILS_H_

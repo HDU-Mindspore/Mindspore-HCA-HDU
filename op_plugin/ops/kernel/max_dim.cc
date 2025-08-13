@@ -19,15 +19,21 @@
 
 #include "utils/op_utils.h"
 
-extern "C" int MaxDim(int nparam, void **params, int *ndims, int64_t **shapes, const char **dtypes, void *stream, void *extra) {
+namespace op_plugin {
+namespace aten_op {
+extern "C" int MaxDim(int nparam, void **params, int *ndims, int64_t **shapes,
+                      const char **dtypes, void *stream, void *extra) {
   auto tensors = ConvertToATenTensors(nparam, params, ndims, shapes, dtypes, c10::kCPU);
   auto at_input = tensors[0];
   auto at_output1 = tensors[nparam - 2];
   auto at_output2 = tensors[nparam - 1];
 
-  KernelInputInfo *kernel_input_info = static_cast<KernelInputInfo *>(extra);
-  int64_t dim = kernel_input_info->GetKernelInput<int64_t>(1);
-  bool keepdim = kernel_input_info->GetKernelInput<bool>(2);
+  KernelInputInfo& input_info = *static_cast<KernelInputInfo*>(extra);
+  KernelInputUtils input_utils(input_info);
+  int64_t dim = input_utils.GetKernelInput<int64_t>(1);
+  bool keepdim = input_utils.GetKernelInput<bool>(2);
   at::max_out(at_output1, at_output2, at_input, dim, keepdim);
   return 0;
 }
+}  // namespace aten_op
+}  // namespace op_plugin
