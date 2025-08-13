@@ -138,6 +138,11 @@ init_default_options
 process_options "$@"
 build_ms_plugin
 
+if [ $? -ne 0 ]; then
+    echo "Compile Failed."
+    exit 1
+fi
+
 if [ ! -f "libms_op_plugin.so" ];then
   echo "[ERROR] libms_op_plugin.so not exist!"
   exit 1
